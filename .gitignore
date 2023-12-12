@@ -1,0 +1,29 @@
+# exclude input data 
+input/
+
+# exclude custom config files (only include base.yml)
+!config/
+config/*
+!config/base.yml 
+!config/final.yml
+
+# exclude custom dataset files (only include dataset.py)
+!data/
+data/*
+!data/datasets.py
+
+# exclude custom model files (only include model.py)
+!model/
+model/*
+!model/model.py
+
+# exclude uitls cache
+uitls/__pycache__/
+
+# exclude results
+results/
+
+# ignore doc files .txt .pdf
+*.txt
+*.pdf
+doc/
