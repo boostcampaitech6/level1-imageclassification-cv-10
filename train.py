@@ -1,190 +1,92 @@
-from __future__ import print_function
-import os
-import yaml
-import glob
+import argparse
 import json
 import multiprocessing
-import random
-import re
+import os
 from importlib import import_module
-from pathlib import Path
-
 from tqdm import tqdm
-from sklearn import metrics
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
-from torchvision.utils import save_image
-# from torchsampler import ImbalancedDatasetSampler
-from torch.utils.tensorboard import SummaryWriter
+import torch
 
-from data.datasets import MaskBaseDataset, MaskSplitByProfileDataset
+from utils.plot import save_confusion_matrix
+from utils.util import *
 from utils.loss import create_criterion
+from utils.metric import calculate_metrics, parse_metric
+from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
-from utils.WeightAndBiasLogger import WeightAndBiasLogger
-
-
-def seed_everything(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed) 
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
-
-
-def get_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        return param_group["lr"]
-
-
-def grid_image(np_images, gts, preds, n=16, shuffle=False):
-    batch_size = np_images.shape[0]
-    assert n <= batch_size
-
-    choices = random.choices(range(batch_size), k=n) if shuffle else list(range(n))
-    figure = plt.figure(
-        figsize=(12, 18 + 2)
-    )  
-    plt.subplots_adjust(
-        top=0.8
-    ) 
-    n_grid = int(np.ceil(n**0.5))
-    tasks = ["mask", "gender", "age"]
-    for idx, choice in enumerate(choices):
-        gt = gts[choice].item()
-        pred = preds[choice].item()
-        image = np_images[choice]
-        gt_decoded_labels = MaskBaseDataset.decode_multi_class(gt)
-        pred_decoded_labels = MaskBaseDataset.decode_multi_class(pred)
-        title = "\n".join(
-            [
-                f"{task} - gt: {gt_label}, pred: {pred_label}"
-                for gt_label, pred_label, task in zip(
-                    gt_decoded_labels, pred_decoded_labels, tasks
-                )
-            ]
-        )
-
-        plt.subplot(n_grid, n_grid, idx + 1, title=title)
-        plt.xticks([])
-        plt.yticks([])
-        plt.grid(False)
-        plt.imshow(image, cmap=plt.cm.binary)
-
-    return figure
-
-
-def increment_path(path, exist_ok=False):
-    """Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
-
-    Args:
-        path (str or pathlib.Path): f"{model_dir}/{args.name}".
-        exist_ok (bool): whether increment path (increment if False).
-    """
-    path = Path(path)
-    if (path.exists() and exist_ok) or (not path.exists()):
-        return str(path)
-    else:
-        dirs = glob.glob(f"{path}*")
-        matches = [re.search(rf"%s(\d+)" % path.stem, d) for d in dirs]
-        i = [int(m.groups()[0]) for m in matches if m]
-        n = max(i) + 1 if i else 2
-        return f"{path}{n}"
-
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
-
-    save_dir = increment_path(os.path.join(save_dir, args.exp_name))
-    exp_name = save_dir
+    save_path = increment_path(os.path.join(save_dir, args.exp_name))
+    create_directory(save_path)
+    weight_path = os.path.join(save_path, 'weights')
+    create_directory(weight_path)
+    args.save_path = save_path
+    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1])
     
-    wb_logger = WeightAndBiasLogger(args, exp_name)
-    
-    # -- settings
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    # -- dataset
-    dataset_module = getattr(
-        import_module(".datasets", package="data"), args.dataset
-    )
-    dataset = dataset_module(
-        data_dir=data_dir,
-    )
-    num_classes = dataset.num_classes  # 18
+    dataset_module = getattr(import_module("data.dataset"), args.dataset)
+    dataset = dataset_module(data_dir=data_dir)
+    
+    num_classes = dataset.num_classes
 
-    # -- augmentation
-    transform_module = getattr(
-        import_module(".datasets", package="data"), args.augmentation
-    ) 
-    transform = transform_module(
-        resize=args.resize,
-        mean=dataset.mean,
-        std=dataset.std,
-    )
+    transform_module = getattr(import_module("data.dataset"), args.augmentation)
+    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
 
-    # -- data_loader
     train_set, val_set = dataset.split_dataset()
-        
-    if args.sampler is None:
-        train_loader = DataLoader(
-            train_set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=True,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
 
-        val_loader = DataLoader(
-            val_set,
-            batch_size=args.valid_batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=False,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-    else:
-        pass
+    train_loader = DataLoader(
+        train_set,
+        batch_size=args.batch_size,
+        num_workers=multiprocessing.cpu_count()//2,
+        shuffle=True,
+        pin_memory=use_cuda,
+        drop_last=True,
+    )
 
-    # -- model
-    model_module = getattr(import_module(".model", package="model"), args.model) 
+    val_loader = DataLoader(
+        val_set,
+        batch_size=args.valid_batch_size,
+        num_workers=multiprocessing.cpu_count()//2,
+        shuffle=False,
+        pin_memory=use_cuda,
+        drop_last=True,
+    )
+
+    model_module = getattr(import_module("models.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
-    # -- loss & metric
-    criterion = create_criterion(args.criterion) 
+    criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
-    optimizer = opt_module(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=float(args.lr),
-        weight_decay=5e-4,
-    )
-    scheduler = ReduceLROnPlateau(optimizer=optimizer, patience=5)
 
-    # -- logging
-    logger = SummaryWriter(log_dir=save_dir)
-    with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4, amsgrad=True)
+    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+
+    with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
     
-    best_epoch = 0
-    best_val_acc = 0
-    best_val_loss = np.inf
-    best_val_f1_score = np.inf
+    txt_logger = Logger(save_path)
+    txt_logger.update_string(str(args))
     
-    for epoch in tqdm(range(args.max_epochs)):
-        # train loop
+    best_val_loss = np.inf
+    best_f1_score = 0.
+    best_val_f1_score = 0
+    
+    for epoch in range(args.max_epochs):
         model.train()
-        loss_value = 0
-        matches = 0
-        for idx, train_batch in enumerate(train_loader):
+
+        train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
+        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.max_epochs, 0., 0.), mininterval=0.01)
+        train_loss = 0.
+        train_acc = 0.
+        for train_batch in train_process_bar:
             inputs, labels = train_batch
-            
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -196,119 +98,106 @@ def train(data_dir, save_dir, args):
 
             loss.backward()
             optimizer.step()
+            
+            train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
+                (preds == labels).sum().item() / args.batch_size)
+            train_process_bar.set_description(train_desc)
+            
+            train_loss += loss.item()
+            train_acc += (preds == labels).sum().item()
+        
+        train_process_bar.close()
+        txt_logger.update_string(train_desc)
+        scheduler.step()
 
-            loss_value += loss.item()
-            matches += (preds == labels).sum().item()
-            if (idx + 1) % args.log_interval == 0:
-                train_loss = loss_value / args.log_interval
-                train_acc = matches / args.batch_size / args.log_interval
-                current_lr = get_lr(optimizer)
-                print(
-                    f"Epoch[{epoch}/{args.max_epochs}]({idx + 1}/{len(train_loader)}) || "
-                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
-                )
-                logger.add_scalar(
-                    "Train/loss", train_loss, epoch * len(train_loader) + idx
-                )
-                logger.add_scalar(
-                    "Train/accuracy", train_acc, epoch * len(train_loader) + idx
-                )
-
-                loss_value = 0
-                matches = 0
-
-        # val loop
         with torch.no_grad():
-            print("Calculating validation results...")
             model.eval()
             val_loss_items = []
-            val_acc_items = []
-            
-            val_labels = []
-            val_preds = []
-            
-            figure = None
+            results = []
+            targets = []
+                    
+            print("Calculate validation set.....")
             for val_batch in val_loader:
                 inputs, labels = val_batch
-                
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
                 outs = model(inputs)
                 preds = torch.argmax(outs, dim=-1)
-
-                loss_item = criterion(outs, labels).item()
-                acc_item = (labels == preds).sum().item()
-                val_loss_items.append(loss_item)
-                val_acc_items.append(acc_item)
                 
-                val_labels.extend(labels.cpu().numpy())
-                val_preds.extend(preds.cpu().numpy())
-
-                if figure is None:
-                    inputs_np = (
-                        torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
-                    )
-                    inputs_np = dataset_module.denormalize_image(
-                        inputs_np, dataset.mean, dataset.std
-                    )
-                    figure = grid_image(
-                        inputs_np,
-                        labels,
-                        preds,
-                        n=16,
-                        shuffle=args.dataset != "MaskSplitByProfileDataset",
-                    )
-                    
-            # average option: micro / macro / weighted / None
-            # micro : 전체 클래스에 대한 f1-score, 각 클래스 TP/FP/FN를 합한 뒤에 계산
-            # macro : 각 클래스에 대한 f1-score를 계산한 뒤 평균
-            # weighted : 각 클래스에 대한 f1-score 계산 후, 클래스 별 데이터 비율에 따른 가중치 평균
-            # None : 각 클래스별 f1-score 
-            val_f1_score = metrics.f1_score(
-                y_true=val_labels, y_pred=val_preds, average="macro"
-            )
+                results.extend(list(preds.cpu().numpy()))
+                targets.extend(list(labels.cpu().numpy()))
+                
+                loss_item = criterion(outs, labels).item()
+                val_loss_items.append(loss_item)
+            
             val_loss = np.sum(val_loss_items) / len(val_loader)
-            val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
+            metrics = calculate_metrics(targets, results, num_classes)
             
-            if val_f1_score > best_val_f1_score:
-                print(
-                    f"New best model for val F1_score : {val_f1_score:.5%}! saving the best model.."
-                )
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
-                best_val_f1_score = val_f1_score
-                best_epoch = epoch
-            torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
-            print(
-                f"[Val] Accracy : {val_acc:4.2%} ||"
-                f"[Val] F1-Score : {val_f1_score:.5%}, loss: {val_loss:4.2} || "
-                f"best F1-Score : {best_val_f1_score:.5%}, best loss: {best_val_loss:4.2}, best epoch: {best_epoch}"
-            )
-            logger.add_scalar("Val/loss", val_loss, epoch)
-            logger.add_scalar("Val/accuracy", val_acc, epoch)
-            logger.add_scalar("Val/F1-Score", val_f1_score, epoch)
-            logger.add_figure("results", figure, epoch)
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
             
-            scheduler.step(val_loss)
+            if metrics["Total F1 Score"] > best_f1_score:
+                torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
+                best_f1_score = metrics["Total F1 Score"]
             
+            validation_desc = \
+                "Validation Loss: {:3.7f}, Validation Acc.: {:3.4f}, Precision: {:3.4f}, Recall: {:3.4f}, F1 Score: {:3.4f}, Best Validation F1 Score.:{:3.4f}".\
+                format(val_loss, metrics["Total Accuracy"], metrics["Total Precision"], metrics["Total Recall"], metrics["Total F1 Score"], best_f1_score)
+            
+            print(validation_desc)
+            txt_logger.update_string(validation_desc)
+            
+            torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
             wb_logger.log(
                 {
-                    "Train loss": train_loss,
-                    "Train accuracy": train_acc,
-                    "Val loss": val_loss,
-                    "Val accuracy": val_acc,
-                    "Val F1_Score": val_f1_score,
+                    "Train Loss": train_loss / len(train_loader),
+                    "Train Accuracy": train_acc / len(train_set),
+                    "Val Loss": val_loss,
+                    "Val Accuracy": metrics["Total Accuracy"],
+                    "Val Recall":metrics["Total Recall"],
+                    "Val Precision": metrics["Total Precision"],
+                    "Val F1_Score": metrics["Total F1 Score"],
                 }
             )
-            
-            print()
+    
+    best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
+    model.module.load_state_dict(best_weight)
+    with torch.no_grad():
+        model.eval()
+        results = []
+        targets = []
+        for val_batch in val_loader:
+            inputs, labels = val_batch
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
-
+            outs = model(inputs)
+            preds = torch.argmax(outs, dim=-1)
+            targets.extend(list(labels.cpu().numpy()))
+            results.extend(list(preds.cpu().numpy()))
+        
+        print("Save Metric....")
+        save_confusion_matrix(targets, results, num_classes, save_path)
+        metrics = calculate_metrics(targets, results, num_classes)
+        results.clear()
+        targets.clear()
+        
+        parsed_metric = parse_metric(metrics, dataset.class_name)
+        print(parsed_metric)
+        
+        txt_logger.update_string("Save Metric....")
+        txt_logger.update_string(parsed_metric)
+        
+    txt_logger.close()
+    
 if __name__ == '__main__':
     p = Parser()
     p.create_parser()
     
+    import yaml
     pargs = p.parser.parse_args()
     try:
         with open(pargs.config, 'r') as fp:
@@ -325,4 +214,3 @@ if __name__ == '__main__':
     args = p.parser.parse_args()  
     
     train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
-    
