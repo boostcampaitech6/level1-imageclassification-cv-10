@@ -41,7 +41,6 @@ class AddGaussianNoise(object):
         transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
         직접 구현하여 사용할 수 있습니다.
     """
-
     def __init__(self, mean=0., std=1.):
         self.std = std
         self.mean = mean
@@ -51,6 +50,21 @@ class AddGaussianNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
+
+class BestSampleAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = Compose([
+            # CenterCrop((380,380)),
+            Resize(resize, Image.BILINEAR),
+            RandomApply([transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=1),
+            RandomApply([transforms.RandomHorizontalFlip(p=0.5)], p=1),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
 
 
 class CustomAugmentation:
@@ -142,7 +156,7 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False'):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False', detect_model=False):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
@@ -153,6 +167,7 @@ class MaskBaseDataset(Dataset):
         self.calc_statistics()
 
         self.face_detection = face_detection
+        self.detect_model = detect_model
 
     def setup(self):
         profiles = os.listdir(self.data_dir)
@@ -223,9 +238,8 @@ class MaskBaseDataset(Dataset):
         image_path = self.image_paths[index]
 
         if self.face_detection!='False':
-            print(self.face_detection)
-            face_detection_module = getattr(import_module("preprocess.face_detection"), self.face_detection)
-            return face_detection_module(image_path)
+            face_detection_module = getattr(import_module("data.preprocess.face_detection"), self.face_detection)
+            return face_detection_module(image_path, self.detect_model)
             
         return Image.open(image_path)
 
@@ -263,9 +277,9 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False'):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False', detect_model=False):
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio,face_detection)
+        super().__init__(data_dir, mean, std, val_ratio,face_detection, detect_model)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):

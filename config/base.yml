@@ -20,7 +20,7 @@ sampler:
 
 # ==== Training ==== 
 seed: 42
-max_epochs: 30
+max_epochs: 20
 batch_size: 8
 valid_batch_size: 64
 optimizer: Adam
@@ -30,4 +30,4 @@ lr_decay_step: 20
 log_interval: 50
 
 # ==== Model ==== 
-model: EfficientnetB4
+# model: EfficientnetB4

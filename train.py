@@ -17,6 +17,9 @@ from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
 
+from ultralytics import YOLO
+
+
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
@@ -30,35 +33,43 @@ def train(data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    dataset = dataset_module(data_dir=data_dir, face_detection = args.face_detection)
+    # dataset = dataset_module(data_dir=data_dir, face_detection=args.face_detection)
+
+    detect_model = False
+    if args.face_detection != 'False':
+        if args.face_detection == 'Yolo_face_detection':
+            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
+
+    dataset = dataset_module(data_dir=data_dir, face_detection=args.face_detection, detect_model=detect_model)
     
     num_classes = dataset.num_classes
 
     transform_module = getattr(import_module("data.datasets"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
+    
 
     train_set, val_set = dataset.split_dataset()
-
+    
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count()//2,
+        num_workers=multiprocessing.cpu_count()//2 if args.face_detection=='False' else 0,
         shuffle=True,
         pin_memory=use_cuda,
         drop_last=True,
     )
-
+    
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count()//2,
+        num_workers=multiprocessing.cpu_count()//2 if args.face_detection=='False' else 0,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
     )
 
-    model_module = getattr(import_module("model.model"), args.model)
+    model_module = getattr(import_module("model.mymodel"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
@@ -85,6 +96,7 @@ def train(data_dir, save_dir, args):
         train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.max_epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
+
         for train_batch in train_process_bar:
             inputs, labels = train_batch
             inputs = inputs.to(device)
