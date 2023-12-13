@@ -26,6 +26,10 @@ results/
 # exclude wandb
 wandb/
 
+#
+.vscode/*
+.vscode/
+
 # exlude xml format
 *.xml
 
