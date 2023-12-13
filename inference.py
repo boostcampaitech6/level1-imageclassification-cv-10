@@ -10,7 +10,7 @@ from data.dataset import TestDataset, MaskBaseDataset
 
 
 def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("model"), args.model)
+    model_cls = getattr(import_module("models.model"), args.model)
     model = model_cls(
         num_classes=num_classes
     )
@@ -19,7 +19,7 @@ def load_model(saved_model, num_classes, device):
     # tar = tarfile.open(tarpath, 'r:gz')
     # tar.extractall(path=saved_model)
 
-    model_path = os.path.join(saved_model, 'best.pth')
+    model_path = os.path.join(saved_model, 'best.pt')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     return model
@@ -32,7 +32,7 @@ def inference(data_dir, model_dir, output_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    num_classes = MaskBaseDataset.num_classes  # 18
+    num_classes = MaskBaseDataset.num_classes
     model = load_model(model_dir, num_classes, device).to(device)
     model.eval()
 
@@ -69,14 +69,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--resize', type=tuple, default=(96, 128), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='EfficientNet', help='model type (default: BaseModel)')
+    parser.add_argument('--batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--resize', type=tuple, default=(256, 192), help='resize size for image when you trained (default: (96, 128))')
+    parser.add_argument('--model', type=str, default='EfficientNetB4', help='model type (default: BaseModel)')
 
     # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/opt/ml/input/data/eval'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', './model'))
-    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './output'))
+    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/data/ephemeral/home/train/eval'))
+    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', '/data/ephemeral/home/project/results/train12/weights/'))
+    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './'))
 
     args = parser.parse_args()
 
