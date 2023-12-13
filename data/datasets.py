@@ -367,3 +367,65 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
+
+
+class OnlyAgeDataset(MaskSplitByProfileDataset):
+    num_classes = 3
+    class_name = ["young", "middle", "old"]
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+        
+    def __getitem__(self, index):
+        assert self.transform is not None
+
+        image = self.read_image(index)
+        age_label = self.get_age_label(index)
+        image_transform = self.transform(image)
+        return image_transform, age_label
+    
+class OnlyMaskDataset(MaskSplitByProfileDataset):
+    num_classes = 3
+    class_name = ["mask", "incorrect", "normal"]
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+        
+    def __getitem__(self, index):
+        assert self.transform is not None
+
+        image = self.read_image(index)
+        mask_label = self.get_mask_label(index)
+        image_transform = self.transform(image)
+        return image_transform, mask_label
+    
+class OnlyGenderDataset(MaskSplitByProfileDataset):
+    num_classes = 2
+    class_name = ["male", "female"]
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+        
+    def __getitem__(self, index):
+        assert self.transform is not None
+
+        image = self.read_image(index)
+        gender_label = self.get_gender_label(index)
+        image_transform = self.transform(image)
+        return image_transform, gender_label
+    
+class TestDataset(Dataset):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.img_paths = img_paths
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __getitem__(self, index):
+        image = Image.open(self.img_paths[index])
+
+        if self.transform:
+            image = self.transform(image)
+        return image
+
+    def __len__(self):
+        return len(self.img_paths)
