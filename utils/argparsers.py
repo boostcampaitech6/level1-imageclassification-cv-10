@@ -137,3 +137,10 @@ class Parser(object):
             default=True,
             help="Try HPO"
         )
+
+
+        self.parser.add_argument(
+            '--face_detection',
+            default='False',
+            help="Face detection"
+        )

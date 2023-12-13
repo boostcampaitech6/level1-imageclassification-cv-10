@@ -30,7 +30,7 @@ def train(data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    dataset = dataset_module(data_dir=data_dir)
+    dataset = dataset_module(data_dir=data_dir, face_detection = args.face_detection)
     
     num_classes = dataset.num_classes
 
