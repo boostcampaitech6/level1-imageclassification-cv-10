@@ -105,7 +105,29 @@ class AgeLabels(int, Enum):
         else:
             return cls.OLD
 
+def change_incorrect_normal(mask):
+    if mask == 'normal':
+        return MaskLabels.INCORRECT
+    elif mask == 'incorrect_mask':
+        return MaskLabels.NORMAL
+    else:
+        return MaskLabels.MASK
 
+
+def change_incorrect_to_mask(mask):
+    if mask == 'incorrect_mask':
+        return MaskLabels.MASK
+    elif mask == 'normal':
+        return MaskLabels.NORMAL
+    else:
+        return MaskLabels.MASK
+    
+def change_gender(gender):
+    if gender == 'male':
+        return 'female'
+    else:
+        return 'male'
+    
 class MaskBaseDataset(Dataset):
     num_classes = 3 * 2 * 3
     class_name = [
@@ -123,6 +145,8 @@ class MaskBaseDataset(Dataset):
         'incorrect_gender': ['001200', '004432', '005223', '001498-1', '000725',
                              '006359', '006360', '006361', '006362', '006363', '006364'] 
     }
+    
+    ignores = ["003399"]
     
     _file_names = {
         "mask1": MaskLabels.MASK,
@@ -152,19 +176,32 @@ class MaskBaseDataset(Dataset):
     def setup(self):
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
-            if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
+            if profile.startswith("."):
                 continue
 
             img_folder = os.path.join(self.data_dir, profile)
             for file_name in os.listdir(img_folder):
                 _file_name, ext = os.path.splitext(file_name)
-                if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
+                if _file_name not in self._file_names:
                     continue
-
-                img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
+                    
+                img_path = os.path.join(self.data_dir, profile, file_name)
                 mask_label = self._file_names[_file_name]
 
-                id, gender, race, age = profile.split("_")
+                id, gender, _, age = profile.split("_")
+                
+                if id in self.ignores:
+                    continue
+                
+                if id in self.relabel_dict['incorrect_to_from_normal']:
+                    mask_label = change_incorrect_normal(_file_name)
+                    
+                if id in self.relabel_dict['incorrect_to_mask']:
+                    mask_label = change_incorrect_to_mask(_file_name)
+                
+                if id in self.relabel_dict['incorrect_gender']:
+                    gender = change_gender(gender)
+                    
                 gender_label = GenderLabels.from_str(gender)
                 age_label = AgeLabels.from_number(age)
 
@@ -172,7 +209,8 @@ class MaskBaseDataset(Dataset):
                 self.mask_labels.append(mask_label)
                 self.gender_labels.append(gender_label)
                 self.age_labels.append(age_label)
-
+    
+            
     def calc_statistics(self):
         has_statistics = self.mean is not None and self.std is not None
         if not has_statistics:
@@ -239,12 +277,6 @@ class MaskBaseDataset(Dataset):
         return img_cp
 
     def split_dataset(self) -> Tuple[Subset, Subset]:
-        """
-        데이터셋을 train 과 val 로 나눕니다,
-        pytorch 내부의 torch.utils.data.random_split 함수를 사용하여
-        torch.utils.data.Subset 클래스 둘로 나눕니다.
-        구현이 어렵지 않으니 구글링 혹은 IDE (e.g. pycharm) 의 navigation 기능을 통해 코드를 한 번 읽어보는 것을 추천드립니다^^
-        """
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
@@ -282,11 +314,23 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     _file_name, ext = os.path.splitext(file_name)
                     if _file_name not in self._file_names:  # "." 로 시작하는 파일 및 invalid 한 파일들은 무시합니다
                         continue
-
+                    
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
                     mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
+                    if id in self.ignores:
+                        continue
+                    
+                    if id in self.relabel_dict['incorrect_to_from_normal']:
+                        mask_label = change_incorrect_normal(_file_name)
+                    
+                    if id in self.relabel_dict['incorrect_to_mask']:
+                        mask_label = change_incorrect_to_mask(_file_name)
+                
+                    if id in self.relabel_dict['incorrect_gender']:
+                        gender = change_gender(gender)
+                        
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
@@ -307,6 +351,41 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         super().__init__(data_dir, mean, std, val_ratio)
         
+    def __getitem__(self, index):
+        assert self.transform is not None
+
+        image = self.read_image(index)
+        age_label = self.get_age_label(index)
+        image_transform = self.transform(image)
+        return image_transform, age_label
+
+class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
+    num_classes = 3
+    class_name = ["young", "middle", "old"]
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+        
+    def setup(self):
+        profiles = os.listdir(self.data_dir)
+        profiles = [profile for profile in profiles if not profile.startswith(".")]
+        split_profiles = self._split_profile(profiles, self.val_ratio)
+
+        cnt = 0
+        for phase, indices in split_profiles.items():
+            for _idx in indices:
+                profile = profiles[_idx]
+                img_folder = os.path.join(self.data_dir, profile)
+                for file_name in os.listdir(img_folder):
+                    _file_name, _ = os.path.splitext(file_name)
+                    if _file_name not in self._file_names:
+                        continue
+                    img_path = os.path.join(self.data_dir, profile, file_name)
+                    _, _, _, age = profile.split("_")
+                    self.age_labels.append(float(age))
+                    self.image_paths.append(img_path)
+                    self.indices[phase].append(cnt)
+                    cnt += 1
+                    
     def __getitem__(self, index):
         assert self.transform is not None
 
