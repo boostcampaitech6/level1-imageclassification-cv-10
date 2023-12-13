@@ -2,10 +2,11 @@
 config: ./config/base.yml
 data_dir: ./input/train/images
 save_dir: ./results
+output_dir: ./output
 exp_name: exp
 
 # Dataset & Transform
-dataset: MaskBaseDataset
+dataset: MaskSplitByProfileDataset
 augmentation: BaseAugmentation
 resize: [
   256,

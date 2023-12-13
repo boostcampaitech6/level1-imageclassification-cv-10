@@ -20,6 +20,11 @@ class Parser(object):
             help="The folder is for saving results"
         )
         self.parser.add_argument(
+            '--output-dir',
+            default="./output",
+            help="The folder is for saving results"
+        )
+        self.parser.add_argument(
             '--exp-name',
             default="exp",
             help="The current experiment name"
