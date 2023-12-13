@@ -75,11 +75,8 @@ def train(data_dir, save_dir, args):
     txt_logger.update_string(str(args))
     
     best_val_loss = np.inf
-<<<<<<< HEAD
     best_f1_score = 0.
-=======
     best_val_f1_score = 0
->>>>>>> 2acdbe497ff3c71e6371729517f9eb554b6e8f20
     
     for epoch in range(args.max_epochs):
         model.train()
