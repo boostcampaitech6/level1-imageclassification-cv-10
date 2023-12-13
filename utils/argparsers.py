@@ -116,3 +116,9 @@ class Parser(object):
             help="The model"
         )
         
+        # Optuna
+        self.parser.add_argument(
+            '--optuna',
+            default=True,
+            help="The HPO with optuna"
+        )
