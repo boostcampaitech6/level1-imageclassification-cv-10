@@ -406,7 +406,7 @@ class OnlyMaskDataset(MaskSplitByProfileDataset):
         image = self.read_image(index)
         mask_label = self.get_mask_label(index)
         image_transform = self.transform(image)
-        return image_transform, mask_label
+        return image_transform, mask_label, self.image_paths[index]
     
 class OnlyGenderDataset(MaskSplitByProfileDataset):
     num_classes = 2
@@ -420,7 +420,7 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         image = self.read_image(index)
         gender_label = self.get_gender_label(index)
         image_transform = self.transform(image)
-        return image_transform, gender_label
+        return image_transform, gender_label, self.image_paths[index]
     
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
