@@ -1,13 +1,16 @@
-# Directory
-config: ./config/base.yml
-data_dir: ./input/train/images
-save_dir: ./results
-exp_name: exp
+# ==== Directory ====
+config: ./config/base.yml  # 실험에 사용할 yaml 파일 경로
+data_dir: ./input/train/images # training dataset 경로
+test_data_dir: ./input/eval # inference dataset 경로
+save_dir: ./results # training result 경로
+output_dir: ./output # inference result 경로
+exp_name: exp # training expriment name
+test_exp_num: # inference할 때 사용할 expriment number
 
-# Dataset & Transform
-dataset: MaskBaseDataset
-augmentation: BaseAugmentation
-resize: [
+# ==== Dataset & Transform ==== 
+dataset: MaskSplitByProfileDataset 
+augmentation: BaseAugmentation 
+resize: [ 
   256,
   192
 ]
@@ -15,7 +18,7 @@ valid_ratio: 0.2
 balanced_split: true
 sampler: 
 
-# Training
+# ==== Training ==== 
 seed: 42
 max_epochs: 30
 batch_size: 8
@@ -26,5 +29,5 @@ criterion: focal
 lr_decay_step: 20
 log_interval: 50
 
-# Model
+# ==== Model ==== 
 model: EfficientnetB4
