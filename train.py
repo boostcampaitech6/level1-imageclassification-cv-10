@@ -155,10 +155,10 @@ def train(data_dir, model_dir, args):
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
             wb_logger.log(
                 {
-                    "Train loss": train_loss / len(train_loader),
-                    "Train accuracy": train_acc / len(train_set),
-                    "Val loss": val_loss,
-                    "Val accuracy": val_acc,
+                    "Train Loss": train_loss / len(train_loader),
+                    "Train Accuracy": train_acc / len(train_set),
+                    "Val Loss": val_loss,
+                    "Val Accuracy": val_acc,
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, default=10, help='how many batches to wait before logging training status')
 
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/usr/src/app/BoostCampl_Lv1/train/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/usr/src/app/BoostCampl_Lv1/project/result/'))
+    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/usr/src/app/BoostCampl_Lv1/project/results/'))
     parser.add_argument('--name', default='train', help='model save at {SM_MODEL_DIR}/{name}')
 
     args = parser.parse_args()

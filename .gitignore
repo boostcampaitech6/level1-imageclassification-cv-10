@@ -8,10 +8,10 @@ config/*
 !config/final.yml
 
 # exclude custom dataset files (only include dataset.py)
-!data/
-data/*
-!data/datasets.py
-
+# !data/
+# data/*
+# !data/datasets.py
+data/__pycache__
 # exclude custom model files (only include model.py)
 !model/
 model/*
