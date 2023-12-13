@@ -17,7 +17,8 @@ import torch
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
-# from torchsampler import ImbalancedDatasetSampler
+from torchsampler import ImbalancedDatasetSampler
+from torch.utils.data import WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from data.datasets import MaskBaseDataset, MaskSplitByProfileDataset
@@ -141,7 +142,50 @@ def train(data_dir, save_dir, args):
             drop_last=True,
         )
 
-        val_loader = DataLoader(
+    elif args.sampler == "ImbalancedSampler":
+        labels = [train_set[i][1] for i in range(len(train_set))]
+        train_loader = DataLoader(
+            train_set,
+            sampler=ImbalancedDatasetSampler(train_set, labels = labels),
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            # shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
+    elif args.sampler == "WeightedSampler":
+        BASE_WEIGHT = [6.885245901639344,
+                       9.21951219512195,
+                       45.54216867469879,
+                       5.163934426229508,
+                       4.626682986536108,
+                       34.678899082568805,
+                       34.42622950819672,
+                       46.09756097560975,
+                       227.710843373494,
+                       25.81967213114754,
+                       23.133414932680537,
+                       173.39449541284404,
+                       34.42622950819672,
+                       46.09756097560975,
+                       227.710843373494,
+                       25.81967213114754,
+                       23.133414932680537,
+                       173.39449541284404]
+        weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
+        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
+        train_loader = DataLoader(
+            train_set,
+            sampler=weightedsampler,
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            # shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
+    val_loader = DataLoader(
             val_set,
             batch_size=args.valid_batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
@@ -149,8 +193,6 @@ def train(data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
-    else:
-        pass
 
     # -- model
     model_module = getattr(import_module(".model", package="model"), args.model) 
