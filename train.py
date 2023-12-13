@@ -15,10 +15,11 @@ from utils.util import *
 from utils.loss import create_criterion
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
+from utils.argparsers import Parser
 
-def train(data_dir, model_dir, args):
+def train(data_dir, save_dir, args):
     seed_everything(args.seed)
-    save_path = increment_path(os.path.join(model_dir, args.name))
+    save_path = increment_path(os.path.join(save_dir, args.name))
     create_directory(save_path)
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
@@ -72,13 +73,13 @@ def train(data_dir, model_dir, args):
     
     txt_logger = Logger(save_path)
     
-    best_val_acc = 0.
     best_val_loss = np.inf
+    best_f1_score = 0.
     
     for epoch in range(args.epochs):
         model.train()
 
-        train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.4f}, Train Acc.: {:3.4f}"
+        train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
         train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
@@ -110,7 +111,6 @@ def train(data_dir, model_dir, args):
         with torch.no_grad():
             model.eval()
             val_loss_items = []
-            val_acc_items = []
             results = []
             targets = []
                     
@@ -127,27 +127,23 @@ def train(data_dir, model_dir, args):
                 targets.extend(list(labels.cpu().numpy()))
                 
                 loss_item = criterion(outs, labels).item()
-                acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
-                val_acc_items.append(acc_item)
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
-            val_acc = np.sum(val_acc_items) / len(targets)
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
             results.clear()
             targets.clear()
             val_loss_items.clear()
-            val_acc_items.clear()
             
-            if val_acc > best_val_acc:
+            if metrics["Total F1 Score"] > best_f1_score:
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
-                best_val_acc = val_acc
+                best_f1_score = metrics["Total F1 Score"]
             
             validation_desc = \
-                "Validation Loss: {:3.4f}, Validation Acc.: {:3.4f}, Best Validation Acc.:{:3.4f}, Precision: {:3.4f}, Recall: {:3.4f}, F1 Score: {:3.4f}".\
-                format(val_loss, val_acc, best_val_acc, metrics["Total Precision"], metrics["Total Recall"], metrics["Total F1 Score"])
+                "Validation Loss: {:3.7f}, Validation Acc.: {:3.4f}, Precision: {:3.4f}, Recall: {:3.4f}, F1 Score: {:3.4f}, Best Validation F1 Score.:{:3.4f}".\
+                format(val_loss, metrics["Total Accuracy"], metrics["Total Precision"], metrics["Total Recall"], metrics["Total F1 Score"], best_f1_score)
             
             print(validation_desc)
             txt_logger.update_string(validation_desc)
@@ -158,13 +154,15 @@ def train(data_dir, model_dir, args):
                     "Train Loss": train_loss / len(train_loader),
                     "Train Accuracy": train_acc / len(train_set),
                     "Val Loss": val_loss,
-                    "Val Accuracy": val_acc,
+                    "Val Accuracy": metrics["Total Accuracy"],
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
                 }
             )
     
+    best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
+    model.module.load_state_dict(best_weight)
     with torch.no_grad():
         model.eval()
         results = []
@@ -194,34 +192,23 @@ def train(data_dir, model_dir, args):
     txt_logger.close()
     
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-
-    import os
+    p = Parser()
+    p.create_parser()
     
-    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='MaskSplitByProfileDataset', help='dataset augmentation type (default: MaskBaseDataset)')
-    parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[256, 192], help='resize size for image when training')
-    parser.add_argument('--batch_size', type=int, default=32, help='input batch size for training (default: 64)')
-    parser.add_argument('--valid_batch_size', type=int, default=32, help='input batch size for validing (default: 32)')
-    parser.add_argument('--model', type=str, default='EfficientNet', help='model type (default: BaseModel)')
-    parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type (default: SGD)')
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    parser.add_argument('--log_interval', type=int, default=10, help='how many batches to wait before logging training status')
-
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/usr/src/app/BoostCampl_Lv1/train/train/images'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/usr/src/app/BoostCampl_Lv1/project/results/'))
-    parser.add_argument('--name', default='train', help='model save at {SM_MODEL_DIR}/{name}')
-
-    args = parser.parse_args()
+    import yaml
+    pargs = p.parser.parse_args()
+    try:
+        with open(pargs.config, 'r') as fp:
+            load_args = yaml.load(fp, Loader=yaml.FullLoader)
+        key = vars(pargs).keys()
+        for k in load_args.keys():
+            if k not in key:
+                print("Wrong argument: ", k)
+                assert(k in key)
+            p.parser.set_defaults(**load_args)
+    except FileNotFoundError:
+        print("Invalid filename. Check your file path or name.")
+        
+    args = p.parser.parse_args()  
     
-    print(args)
-
-    data_dir = args.data_dir
-    model_dir = args.model_dir
-
-    train(data_dir, model_dir, args)
+    train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
