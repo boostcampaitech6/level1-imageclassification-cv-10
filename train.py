@@ -175,7 +175,7 @@ def train(data_dir, save_dir, args):
     best_epoch = 0
     best_val_acc = 0
     best_val_loss = np.inf
-    best_val_f1_score = np.inf
+    best_val_f1_score = 0
     
     for epoch in tqdm(range(args.max_epochs)):
         # train loop
