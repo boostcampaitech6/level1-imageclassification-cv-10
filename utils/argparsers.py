@@ -116,3 +116,9 @@ class Parser(object):
             help="The model"
         )
         
+        # HPO
+        self.parser.add_argument(
+            '--hpo',
+            default=True,
+            help="Try HPO"
+        )
