@@ -1,9 +1,11 @@
 # Directory
 config: ./config/base.yml
 data_dir: ./input/train/images
+test_data_dir: ./input/eval
 save_dir: ./results
 output_dir: ./output
 exp_name: exp
+test_exp_num: 8
 
 # Dataset & Transform
 dataset: MaskSplitByProfileDataset
