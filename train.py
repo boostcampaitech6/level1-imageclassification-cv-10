@@ -29,12 +29,12 @@ def train(data_dir, save_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    dataset_module = getattr(import_module("data.dataset"), args.dataset)
+    dataset_module = getattr(import_module("data.datasets"), args.dataset)
     dataset = dataset_module(data_dir=data_dir)
     
     num_classes = dataset.num_classes
 
-    transform_module = getattr(import_module("data.dataset"), args.augmentation)
+    transform_module = getattr(import_module("data.datasets"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
 
@@ -58,14 +58,14 @@ def train(data_dir, save_dir, args):
         drop_last=True,
     )
 
-    model_module = getattr(import_module("models.model"), args.model)
+    model_module = getattr(import_module("model.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
-    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4, amsgrad=True)
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
