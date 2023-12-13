@@ -35,6 +35,12 @@ wandb/
 
 requirements.txt
 
+# exlude csv format
+*.csv
+
+# exclude sh format
+*.sh
+
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,visualstudiocode,python,jupyternotebooks
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,visualstudiocode,python,jupyternotebooks
 
