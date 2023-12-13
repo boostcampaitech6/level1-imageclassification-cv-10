@@ -17,6 +17,8 @@ from torchvision.transforms import (
     ColorJitter,
     RandomHorizontalFlip,
 )
+import pandas as pd
+from sklearn.model_selection import train_test_split
 
 # 지원되는 이미지 확장자 리스트
 IMG_EXTENSIONS = [
@@ -274,10 +276,65 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         train_indices = set(range(length)) - val_indices
         return {"train": train_indices, "val": val_indices}
 
+    @staticmethod
+    def get_profile_from_paths(paths:list[str]) -> tuple():
+        """
+        주어진 이미지 프로파일 path들로부터 id, gender, race, age를 각각 리스트로 뽑아줍니다
+        """
+        ids = []
+        genders = []
+        races = []
+        ages = []
+
+        for filename in paths:
+            id, gender, race, age = filename.split("_")
+            ids.append(id)
+            genders.append(gender)
+            races.append(race)
+            ages.append(age)
+        
+        return (ids, genders, races, ages)
+
+    def _split_balanced_profile(self, profiles:list[str], val_ratio:float) -> dict:
+        """
+        Scikit-learn의 train_test_split을 이용해 성별과 나이를 val_ratio만큼의 분포로 최대한 맞춰주는 함수입니다
+        """
+        profile_df = pd.DataFrame()
+        profile_df["path"] = profiles
+
+        ids, genders, races, ages = self.get_profile_from_paths(profile_df["path"])
+
+        profile_df["gender"] = genders
+        profile_df["age"] = ages
+
+        new_label_list = []
+        gender_list = []
+        age_list = []
+
+        for gender, age in zip(profile_df["gender"], profile_df["age"]):
+            gender_list.append(GenderLabels.from_str(gender))
+            age_list.append(AgeLabels.from_number(age))
+
+        for i in range(len(profile_df)):
+            new_label_list.append(MaskBaseDataset.encode_multi_class(0, gender_list[i], age_list[i]))
+
+        profile_df["gender_age"] = new_label_list
+
+        train_list, val_list = train_test_split(
+            profile_df, test_size=val_ratio, random_state=42, stratify=profile_df["gender_age"]
+        )
+
+        train_indices = set(list(train_list.index))
+        val_indices = set(list(val_list.index))
+
+        return {"train": train_indices, "val": val_indices}
+
     def setup(self):
         profiles = os.listdir(self.data_dir)
         profiles = [profile for profile in profiles if not profile.startswith(".")]
-        split_profiles = self._split_profile(profiles, self.val_ratio)
+
+        # 새로 만든 split_balanced_profile 함수를 이용해 gender, age에 맞춰 profile을 나눕니다
+        split_profiles = self._split_balanced_profile(profiles, self.val_ratio)
 
         cnt = 0
         for phase, indices in split_profiles.items():
