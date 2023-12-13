@@ -8,15 +8,9 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
-from torchvision.transforms import (
-    Resize,
-    ToTensor,
-    Normalize,
-    Compose,
-    CenterCrop,
-    ColorJitter,
-    RandomHorizontalFlip,
-)
+from torchvision import transforms
+from torchvision.transforms import *
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
