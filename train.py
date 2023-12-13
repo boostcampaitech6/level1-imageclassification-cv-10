@@ -19,7 +19,7 @@ from utils.argparsers import Parser
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
-    save_path = increment_path(os.path.join(save_dir, args.name))
+    save_path = increment_path(os.path.join(save_dir, args.exp_name))
     create_directory(save_path)
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
@@ -72,15 +72,16 @@ def train(data_dir, save_dir, args):
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
     
     txt_logger = Logger(save_path)
+    txt_logger.update_string(str(args))
     
     best_val_loss = np.inf
     best_f1_score = 0.
     
-    for epoch in range(args.epochs):
+    for epoch in range(args.max_epochs):
         model.train()
 
         train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
-        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.epochs, 0., 0.), mininterval=0.01)
+        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.max_epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
         for train_batch in train_process_bar:
@@ -97,7 +98,7 @@ def train(data_dir, save_dir, args):
             loss.backward()
             optimizer.step()
             
-            train_desc = train_desc_format.format(epoch, args.epochs, loss.item(),\
+            train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
             train_process_bar.set_description(train_desc)
             
