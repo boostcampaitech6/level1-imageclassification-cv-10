@@ -2,7 +2,7 @@
 config: ./config/base.yml
 data_dir: ./input/train/images
 save_dir: ./results
-exp_name: exp
+exp_name: train
 
 # Dataset & Transform
 dataset: MaskSplitByProfileDataset
@@ -21,10 +21,10 @@ max_epochs: 30
 batch_size: 128
 valid_batch_size: 128
 optimizer: AdamW
-lr: 1e-4
+lr: 0.001
 criterion: cross_entropy
 lr_decay_step: 20
 log_interval: 50
 
 # Model
-model: EfficientnetB4
+model: EfficientNet

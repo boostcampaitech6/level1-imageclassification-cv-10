@@ -70,7 +70,7 @@ class Parser(object):
             help="The initial random seed"
         )
         self.parser.add_argument(
-            '--epochs',
+            '--max_epochs',
             default=10,
             help="The max epochs"
         )
