@@ -1,4 +1,26 @@
+from typing import Any
+import os
 import wandb
+class Logger:
+    def __init__(self, save_path: str, file_name :str='log.txt'):
+        self.save_path = save_path
+        self.file_name = file_name
+        self.file = open(os.path.join(self.save_path, self.file_name), 'w')
+        
+    def update(self, contents: dict[str:Any]):
+        logging_content = ''
+        for key in contents:
+            logging_content += (key + ': ' + str(contents[key]) + "\n")
+        self.file.write(logging_content)
+    
+    def update_string(self, contents: str):
+        if isinstance(contents, str):
+            self.file.write(contents + "\n")
+        else:
+            raise TypeError("Args is not string type.")
+        
+    def close(self):
+        self.file.close()
 
 class WeightAndBiasLogger():
     def __init__(self, config: dict, exp_name: str):
@@ -20,8 +42,10 @@ class WeightAndBiasLogger():
         wandb.update(args)
     
     def update_image_with_label(self, image, label):
-        pass
+        combined_image = self.combine_image_and_label(image, label)
+        self.update_image(combined_image)
     
+    @staticmethod
     def combine_image_and_label(self, image, label):
         pass
     
