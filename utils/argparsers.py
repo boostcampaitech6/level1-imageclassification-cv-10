@@ -15,6 +15,11 @@ class Parser(object):
             help="The dataset folder path"
         )
         self.parser.add_argument(
+            '--test-data-dir',
+            default="/input",
+            help="The test dataset folder path"
+        )
+        self.parser.add_argument(
             '--save-dir',
             default="./results",
             help="The folder is for saving results"
@@ -27,6 +32,11 @@ class Parser(object):
         self.parser.add_argument(
             '--exp-name',
             default="exp",
+            help="The current experiment name"
+        )
+        self.parser.add_argument(
+            '--test-exp-num',
+            default=None,
             help="The current experiment name"
         )
         self.parser.add_argument(
