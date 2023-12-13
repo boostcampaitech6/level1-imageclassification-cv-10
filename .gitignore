@@ -20,8 +20,16 @@ model/*
 # exclude uitls cache
 utils/__pycache__
 
+# exclude EDA folder (temporarily)
+EDA/
+eda.py
+
 # exclude results
 results/
+
+# exclude etc
+*.txt
+*.ipynb
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,visualstudiocode,python,jupyternotebooks
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,visualstudiocode,python,jupyternotebooks
