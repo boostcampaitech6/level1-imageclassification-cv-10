@@ -26,6 +26,7 @@ eda.py
 
 # exclude results
 results/
+.vscode/
 
 # exclude etc
 *.txt
