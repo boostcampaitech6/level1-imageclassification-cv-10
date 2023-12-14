@@ -16,6 +16,10 @@ from utils.loss import create_criterion
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
+from torchsampler import ImbalancedDatasetSampler
+from torch.utils.data import WeightedRandomSampler
+
+import random
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
@@ -51,17 +55,65 @@ def train(data_dir, save_dir, args):
     dataset.set_transform(transform)
     
 
+    # num_workers=multiprocessing.cpu_count()//2 if args.face_detection=='False' else 0,
     train_set, val_set = dataset.split_dataset()
-    
-    train_loader = DataLoader(
-        train_set,
-        batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count()//2 if args.face_detection=='False' else 0,
-        shuffle=True,
-        pin_memory=use_cuda,
-        drop_last=True,
-    )
-    
+
+    if args.sampler is None:
+        train_loader = DataLoader(
+            train_set,
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
+    #torchsampler에서 제공하는 ImbalancedDatasetSampler를 사용합니다
+    elif args.sampler == "ImbalancedSampler":
+        labels = [train_set[i][1] for i in range(len(train_set))]
+        train_loader = DataLoader(
+            train_set,
+            sampler=ImbalancedDatasetSampler(train_set, labels = labels),
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            # shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
+    #torch.utils에서 제공하는 WeightedSampler를 사용합니다
+    elif args.sampler == "WeightedSampler":
+        #train set의 라벨 분포를 이용해 0부터 17까지 18개의 라벨에 대해 계산한 가중치 값들
+        BASE_WEIGHT = [6.885245901639344,
+                       9.21951219512195,
+                       45.54216867469879,
+                       5.163934426229508,
+                       4.626682986536108,
+                       34.678899082568805,
+                       34.42622950819672,
+                       46.09756097560975,
+                       227.710843373494,
+                       25.81967213114754,
+                       23.133414932680537,
+                       173.39449541284404,
+                       34.42622950819672,
+                       46.09756097560975,
+                       227.710843373494,
+                       25.81967213114754,
+                       23.133414932680537,
+                       173.39449541284404]
+        weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
+        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
+        train_loader = DataLoader(
+            train_set,
+            sampler=weightedsampler,
+            batch_size=args.batch_size,
+            num_workers=multiprocessing.cpu_count() // 2,
+            # shuffle=True,
+            pin_memory=use_cuda,
+            drop_last=True,
+        )
+
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
@@ -149,10 +201,6 @@ def train(data_dir, save_dir, args):
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
-            results.clear()
-            targets.clear()
-            val_loss_items.clear()
-            
             if metrics["Total F1 Score"] > best_f1_score:
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
@@ -165,6 +213,12 @@ def train(data_dir, save_dir, args):
             txt_logger.update_string(validation_desc)
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
+
+            false_pred_images = []
+            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            for index in random_sample:
+                false_pred_images.append(wb_logger.update_image_with_label(val_set[index][0], results[index].item(), targets[index].item()))
+
             wb_logger.log(
                 {
                     "Train Loss": train_loss / len(train_loader),
@@ -174,8 +228,13 @@ def train(data_dir, save_dir, args):
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
+                    "Image": false_pred_images
                 }
             )
+
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
     
     best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
     model.module.load_state_dict(best_weight)
@@ -225,6 +284,8 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print("Invalid filename. Check your file path or name.")
         
-    args = p.parser.parse_args()  
+    args = p.parser.parse_args() 
+    p.print_args(args)
     
+    os.makedirs(args.save_dir, exist_ok=True)
     train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
