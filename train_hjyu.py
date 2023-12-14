@@ -318,10 +318,10 @@ def train(data_dir, save_dir, args):
                 print(
                     f"New best model for val F1_score : {val_f1_score:.5%}! saving the best model.."
                 )
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                torch.save(model.module.state_dict(), f"{save_dir}/best.pt")
                 best_val_f1_score = val_f1_score
                 best_epoch = epoch
-            torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
+            torch.save(model.module.state_dict(), f"{save_dir}/last.pt")
             print(
                 f"[Val] Accracy : {val_acc:4.2%} ||"
                 f"[Val] F1-Score : {val_f1_score:.5%}, loss: {val_loss:4.2} || "
