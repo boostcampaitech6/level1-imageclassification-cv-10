@@ -20,6 +20,8 @@ from utils.argparsers import Parser
 from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import WeightedRandomSampler
 
+import random
+
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
@@ -185,10 +187,6 @@ def train(data_dir, save_dir, args):
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
-            results.clear()
-            targets.clear()
-            val_loss_items.clear()
-            
             if metrics["Total F1 Score"] > best_f1_score:
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
@@ -201,6 +199,12 @@ def train(data_dir, save_dir, args):
             txt_logger.update_string(validation_desc)
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
+
+            false_pred_images = []
+            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            for index in random_sample:
+                false_pred_images.append(wb_logger.update_image_with_label(val_set[index][0], results[index].item(), targets[index].item()))
+
             wb_logger.log(
                 {
                     "Train Loss": train_loss / len(train_loader),
@@ -210,8 +214,13 @@ def train(data_dir, save_dir, args):
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
+                    "Image": false_pred_images
                 }
             )
+
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
     
     best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
     model.module.load_state_dict(best_weight)

@@ -41,16 +41,18 @@ class WeightAndBiasLogger():
             raise TypeError('Argument must be dictionary')
         wandb.update(args)
     
-    def update_image_with_label(self, image, label):
-        combined_image = self.combine_image_and_label(image, label)
-        self.update_image(combined_image)
+    def update_image_with_label(self, image, prediction, truth):
+        return wandb.Image(image, caption = f"Pred: {prediction} Truth: {truth}")
+        # combined_image = self.combine_image_and_label(image, label)
+        # self.update_image(combined_image)
+
     
-    @staticmethod
-    def combine_image_and_label(self, image, label):
-        pass
+    # @staticmethod
+    # def combine_image_and_label(self, image, label):
+    #     pass
     
-    def update_image(self, image):
-        wandb.update(wandb.Image(image))
+    # def update_image(self, image):
+    #     wandb.update(wandb.Image(image))
     
     def log(self, log: dict):
         if isinstance(log, dict) or hasattr(log, '__dict__'):
