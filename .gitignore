@@ -26,10 +26,14 @@ eda.py
 
 # exclude results
 results/
+output/
+.vscode/
 
 # exclude etc
 *.txt
 *.ipynb
+*.tar
+*.gz
 
 # exclude output
 output/
