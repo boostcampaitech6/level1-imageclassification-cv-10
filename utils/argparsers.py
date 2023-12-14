@@ -137,3 +137,8 @@ class Parser(object):
             default=True,
             help="Try HPO"
         )
+    
+    def print_args(self, args):
+        print("Arguments:")
+        for arg in vars(args):
+            print("\t{}: {}".format(arg, getattr(args, arg)))

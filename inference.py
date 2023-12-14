@@ -112,10 +112,11 @@ if __name__ == "__main__":
         print("Invalid filename. Check your file path or name.")
 
     args = p.parser.parse_args()  
+    
+    p.print_args(args)
 
     data_dir = args.test_data_dir
-    
-    exp_name = args.exp_name + (args.test_exp_name if args.test_exp_name else "")
+    exp_name = args.exp_name + (args.test_exp_num if args.test_exp_num else "")
     model_dir = args.save_dir + "/{}/weights".format(exp_name)
     output_dir = args.output_dir
 

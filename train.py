@@ -261,6 +261,8 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print("Invalid filename. Check your file path or name.")
         
-    args = p.parser.parse_args()  
+    args = p.parser.parse_args() 
+    p.print_args(args)
     
+    os.makedirs(args.save_dir, exist_ok=True)
     train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
