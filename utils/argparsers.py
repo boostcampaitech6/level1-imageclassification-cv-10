@@ -137,6 +137,12 @@ class Parser(object):
             default=True,
             help="Try HPO"
         )
+
+        self.parser.add_argument(
+            '--face-detection',
+            default='False',
+            help="Face detection"
+        )
     
     def print_args(self, args):
         print("Arguments:")
@@ -144,8 +150,4 @@ class Parser(object):
             print("\t{}: {}".format(arg, getattr(args, arg)))
 
 
-        self.parser.add_argument(
-            '--face-detection',
-            default='False',
-            help="Face detection"
-        )
+        
