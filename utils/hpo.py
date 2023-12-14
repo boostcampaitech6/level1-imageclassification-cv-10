@@ -21,14 +21,14 @@ from loss import FocalLoss, F1Loss, LabelSmoothingLoss
 sys.path.append(".")
 sys.path.append("..")
 
-def train(model, criterion, optimizer, scheduler):
+def train(model, epochs, criterion, optimizer, scheduler):
     criterion = criterion.to(device)
 
-    for epoch in range(args.num_epochs):
+    for epoch in range(epochs):
         model.train()
         
         train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
-        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.num_epochs, 0., 0.), mininterval=0.01)
+        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
         for inputs, labels in train_process_bar:
@@ -42,7 +42,7 @@ def train(model, criterion, optimizer, scheduler):
             loss.backward()
             optimizer.step()
 
-            train_desc = train_desc_format.format(epoch, args.num_epochs, loss.item(),\
+            train_desc = train_desc_format.format(epoch, epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
             train_process_bar.set_description(train_desc)
             
@@ -50,11 +50,9 @@ def train(model, criterion, optimizer, scheduler):
             train_acc += (preds == labels).sum().item()
 
         metrics = validation(model, criterion)
+        scheduler.step()
 
-        if scheduler is not None:
-            scheduler.step()
-
-    return metrics["Total Accuracy"]
+    return metrics
 
 def validation(model, criterion):
     best_val_loss = 0.
@@ -89,15 +87,15 @@ def validation(model, criterion):
     return metrics
 
 def search_hyperparam(trial):
-    lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.001, 0.005])
-    epochs = trial.suggest_int("epochs", low=50, high=100, step=25)
+    lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.005])
+    epochs = trial.suggest_int("epochs", low=10, high=50, step=10)
     criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal", "f1"])
     optimizer = trial.suggest_categorical("optimizer", ["sgd", "adam", "adamw"])
-    scheduler = trial.suggest_categorical("scheduler", ["cosine", "None"])
+    scheduler = trial.suggest_categorical("scheduler", ["cosine", "step", 'exponential'])
 
     return {
         "lr": lr,
-        "epochs" : epochs,
+        "epochs": epochs,
         "criterion": criterion,
         "optimizer": optimizer,
         "scheduler": scheduler,
@@ -109,6 +107,8 @@ def objective(trial):
     model_module = getattr(import_module("model.model", package='utils'), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
+
+    epochs = hyperparams["epochs"]
 
     if hyperparams["criterion"] == "ce": 
         criterion = nn.CrossEntropyLoss()
@@ -127,13 +127,15 @@ def objective(trial):
         optimizer = optim.AdamW(model.parameters(), lr=hyperparams["lr"], weight_decay=5e-4)
     
     if hyperparams["scheduler"] == "cosine":
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.num_epochs)
-    elif hyperparams["scheduler"] == "None":
-        scheduler = None
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    elif hyperparams["scheduler"] == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5)
+    elif hyperparams["scheduler"] == "exponential":
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
-    metrics = train(model, criterion, optimizer, scheduler)
+    metrics = train(model, epochs, criterion, optimizer, scheduler)
 
-    return metrics["Total Accuracy"]
+    return metrics["Total F1 Score"]
 
 
 if __name__ == '__main__':
@@ -146,7 +148,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', default="../../input/train/images", help="The dataset folder path")
     parser.add_argument('--augmentation', default="BaseAugmentation", help="The augmentation method")
     parser.add_argument('--resize', default=[256, 192], help="The input image resize")
-    parser.add_argument("--num_epochs", type=int, default=30, help="Select number of epochs")
     args = parser.parse_args()
 
     seed_everything(args.seed)
