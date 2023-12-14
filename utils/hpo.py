@@ -1,5 +1,6 @@
 import multiprocessing
 import numpy as np
+import sys
 
 import optuna
 
@@ -16,19 +17,20 @@ from importlib import import_module
 from util import seed_everything, AverageMeter
 from metric import calculate_metrics
 from loss import FocalLoss, F1Loss, LabelSmoothingLoss
-from ..model.model import EfficientnetB4
-from ..data.datasets import MaskSplitByProfileDataset
+
+sys.path.append(".")
+sys.path.append("..")
 
 def train(model, criterion, optimizer, scheduler):
-    model = model.to(device)
     criterion = criterion.to(device)
 
-    train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
-    train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.num_epochs, 0., 0.), mininterval=0.01)
-    train_loss = 0.
-    train_acc = 0.
     for epoch in range(args.num_epochs):
         model.train()
+        
+        train_desc_format = "Epoch[{:03d}/{:03d}] - Train Loss: {:3.7f}, Train Acc.: {:3.4f}"
+        train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.num_epochs, 0., 0.), mininterval=0.01)
+        train_loss = 0.
+        train_acc = 0.
         for inputs, labels in train_process_bar:
             inputs, labels = inputs.to(device), labels.to(device)
 
@@ -104,17 +106,17 @@ def search_hyperparam(trial):
 def objective(trial):
     hyperparams = search_hyperparam(trial)
 
-    # model_module = getattr(import_module("..model.model", package='utils'), args.model)
-    model = EfficientnetB4(num_classes=num_classes).to(device)
+    model_module = getattr(import_module("model.model", package='utils'), args.model)
+    model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
-    if hyperparams["loss_fn"] == "ce": 
+    if hyperparams["criterion"] == "ce": 
         criterion = nn.CrossEntropyLoss()
-    elif hyperparams["loss_fn"] == "smooth":
-        criterion = LabelSmoothingLoss(classes=num_classes, device=device)
-    elif hyperparams["loss_fn"] == "focal":
+    elif hyperparams["criterion"] == "smooth":
+        criterion = LabelSmoothingLoss(classes=num_classes)
+    elif hyperparams["criterion"] == "focal":
         criterion = FocalLoss()
-    elif hyperparams["loss_fn"] == "f1":
+    elif hyperparams["criterion"] == "f1":
         criterion = F1Loss(classes=num_classes)
 
     if hyperparams["optimizer"] == "sgd":
@@ -129,9 +131,9 @@ def objective(trial):
     elif hyperparams["scheduler"] == "None":
         scheduler = None
 
-    metrics = train(trial, criterion, optimizer, scheduler)
+    metrics = train(model, criterion, optimizer, scheduler)
 
-    return metrics[""]
+    return metrics["Total Accuracy"]
 
 
 if __name__ == '__main__':
@@ -139,8 +141,11 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=128, help="Select batch size")
     parser.add_argument("--seed", type=int, default=137, help="Select Random Seed")
     parser.add_argument("--trial", type=int, default=1000, help="Select number of trial")
+    parser.add_argument('--model', default="EfficientnetB4", help="The model")
     parser.add_argument('--dataset', default="MaskBaseDataset", help="The input dataset type")
-    parser.add_argument('--data_dir', default="../input/train/images", help="The dataset folder path")
+    parser.add_argument('--data_dir', default="../../input/train/images", help="The dataset folder path")
+    parser.add_argument('--augmentation', default="BaseAugmentation", help="The augmentation method")
+    parser.add_argument('--resize', default=[256, 192], help="The input image resize")
     parser.add_argument("--num_epochs", type=int, default=30, help="Select number of epochs")
     args = parser.parse_args()
 
@@ -149,9 +154,13 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    # dataset_module = getattr(import_module("..data.datasets"), args.dataset)
-    dataset = MaskSplitByProfileDataset(data_dir=args.data_dir)
+    dataset_module = getattr(import_module("data.datasets"), args.dataset)
+    dataset = dataset_module(data_dir=args.data_dir)
     num_classes = dataset.num_classes
+
+    transform_module = getattr(import_module("data.datasets"), args.augmentation)
+    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
+    dataset.set_transform(transform)
 
     train_set, val_set = dataset.split_dataset()
  
