@@ -1,8 +1,7 @@
 import multiprocessing
+import numpy as np
 
 import optuna
-from optuna import Trial
-from optuna.samplers import TPESampler
 
 import torch
 import torch.nn as nn
@@ -15,7 +14,10 @@ import argparse
 from tqdm import tqdm
 from importlib import import_module
 from util import seed_everything, AverageMeter
+from metric import calculate_metrics
 from loss import FocalLoss, F1Loss, LabelSmoothingLoss
+from ..model.model import EfficientnetB4
+from ..data.datasets import MaskSplitByProfileDataset
 
 def train(model, criterion, optimizer, scheduler):
     model = model.to(device)
@@ -45,13 +47,44 @@ def train(model, criterion, optimizer, scheduler):
             train_loss += loss.item()
             train_acc += (preds == labels).sum().item()
 
+        metrics = validation(model, criterion)
+
         if scheduler is not None:
             scheduler.step()
 
-        if best_score < test_score:
-            best_score = test_score
+    return metrics["Total Accuracy"]
 
-    return best_score
+def validation(model, criterion):
+    best_val_loss = 0.
+    best_f1_score = 0.
+    with torch.no_grad():
+        model.eval()
+        val_loss_items = []
+        results = []
+        targets = []
+
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+            preds = torch.argmax(outputs, dim=-1)
+            
+            results.extend(list(preds.cpu().numpy()))
+            targets.extend(list(labels.cpu().numpy()))
+            
+            loss_item = criterion(outputs, labels).item()
+            val_loss_items.append(loss_item)
+        
+        val_loss = np.sum(val_loss_items) / len(val_loader)
+        best_val_loss = min(best_val_loss, val_loss)
+        metrics = calculate_metrics(targets, results, num_classes)
+
+        validation_desc = \
+            "Validation Loss: {:3.7f}, Validation Acc.: {:3.4f}, Precision: {:3.4f}, Recall: {:3.4f}, F1 Score: {:3.4f}".\
+            format(val_loss, metrics["Total Accuracy"], metrics["Total Precision"], metrics["Total Recall"], metrics["Total F1 Score"])
+        print(validation_desc)
+
+    return metrics
 
 def search_hyperparam(trial):
     lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.001, 0.005])
@@ -71,18 +104,18 @@ def search_hyperparam(trial):
 def objective(trial):
     hyperparams = search_hyperparam(trial)
 
-    model_module = getattr(import_module("model.model"), args.model)
-    model = model_module(num_classes=args.num_class).to(device)
+    # model_module = getattr(import_module("..model.model", package='utils'), args.model)
+    model = EfficientnetB4(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
     if hyperparams["loss_fn"] == "ce": 
         criterion = nn.CrossEntropyLoss()
     elif hyperparams["loss_fn"] == "smooth":
-        criterion = LabelSmoothingLoss(classes=args.num_class, device=device)
+        criterion = LabelSmoothingLoss(classes=num_classes, device=device)
     elif hyperparams["loss_fn"] == "focal":
         criterion = FocalLoss()
     elif hyperparams["loss_fn"] == "f1":
-        criterion = F1Loss(classes=args.num_class)
+        criterion = F1Loss(classes=num_classes)
 
     if hyperparams["optimizer"] == "sgd":
         optimizer = optim.SGD(model.parameters(), lr=hyperparams["lr"], momentum=0.9, weight_decay=5e-4)
@@ -106,9 +139,8 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=128, help="Select batch size")
     parser.add_argument("--seed", type=int, default=137, help="Select Random Seed")
     parser.add_argument("--trial", type=int, default=1000, help="Select number of trial")
-    parser.add_argument('--dataset', default="BaseDataset", help="The input dataset type")
+    parser.add_argument('--dataset', default="MaskBaseDataset", help="The input dataset type")
     parser.add_argument('--data_dir', default="../input/train/images", help="The dataset folder path")
-    parser.add_argument("--num_class", type=int, default=18, help="Select number of class")
     parser.add_argument("--num_epochs", type=int, default=30, help="Select number of epochs")
     args = parser.parse_args()
 
@@ -117,8 +149,9 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    dataset = dataset_module(data_dir=args.data_dir)
+    # dataset_module = getattr(import_module("..data.datasets"), args.dataset)
+    dataset = MaskSplitByProfileDataset(data_dir=args.data_dir)
+    num_classes = dataset.num_classes
 
     train_set, val_set = dataset.split_dataset()
  
