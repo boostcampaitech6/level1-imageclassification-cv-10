@@ -43,8 +43,9 @@ class F1Loss(nn.Module):
         self.epsilon = epsilon
         
     def forward(self, y_pred, y_true):
-        assert y_pred.ndim == 2
-        assert y_pred.ndim == 1
+        assert y_true.ndim == 1
+        assert y_pred.ndim == 1 or y_pred.ndim == 2
+        
         y_true = F.one_hot(y_true, self.classes).to(torch.float32)
         y_pred = F.softmax(y_pred, dim=1)
         
