@@ -20,6 +20,7 @@ from utils.argparsers import Parser
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
+    create_directory(save_dir)
     create_directory(save_path)
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
@@ -39,7 +40,8 @@ def train(data_dir, save_dir, args):
     dataset.set_transform(transform)
 
     train_set, val_set = dataset.split_dataset()
-
+ 
+ 
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
@@ -116,7 +118,7 @@ def train(data_dir, save_dir, args):
             results = []
             targets = []
                     
-            print("Calculate validation set.....")
+            print("Calculate validation stest_data_diret.....")
             for val_batch in val_loader:
                 inputs, labels = val_batch
                 inputs = inputs.to(device)
