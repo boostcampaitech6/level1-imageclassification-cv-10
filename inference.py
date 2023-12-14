@@ -114,7 +114,9 @@ if __name__ == "__main__":
     args = p.parser.parse_args()  
 
     data_dir = args.test_data_dir
-    model_dir = args.save_dir + "/{}{}/weights".format(args.exp_name, args.test_exp_num)
+    
+    exp_name = args.exp_name + (args.test_exp_name if args.test_exp_name else "")
+    model_dir = args.save_dir + "/{}/weights".format(exp_name)
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
