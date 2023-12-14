@@ -88,8 +88,8 @@ def validation(model, criterion):
 
 def search_hyperparam(trial):
     lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.005])
-    epochs = trial.suggest_int("epochs", low=10, high=50, step=10)
-    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal", "f1"])
+    epochs = trial.suggest_int("epochs", low=2, high=10, step=2)
+    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal"])
     optimizer = trial.suggest_categorical("optimizer", ["sgd", "adam", "adamw"])
     scheduler = trial.suggest_categorical("scheduler", ["cosine", "step", 'exponential'])
 
@@ -108,6 +108,7 @@ def objective(trial):
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
+    lr = hyperparams["lr"]
     epochs = hyperparams["epochs"]
 
     if hyperparams["criterion"] == "ce": 
@@ -120,16 +121,16 @@ def objective(trial):
         criterion = F1Loss(classes=num_classes)
 
     if hyperparams["optimizer"] == "sgd":
-        optimizer = optim.SGD(model.parameters(), lr=hyperparams["lr"], momentum=0.9, weight_decay=5e-4)
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
     elif hyperparams["optimizer"] == "adam":
-        optimizer = optim.Adam(model.parameters(), lr=hyperparams["lr"], weight_decay=5e-4)
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
     elif hyperparams["optimizer"] == "adamw":
-        optimizer = optim.AdamW(model.parameters(), lr=hyperparams["lr"], weight_decay=5e-4)
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-4)
     
     if hyperparams["scheduler"] == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     elif hyperparams["scheduler"] == "step":
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2)
     elif hyperparams["scheduler"] == "exponential":
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
@@ -142,7 +143,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=128, help="Select batch size")
     parser.add_argument("--seed", type=int, default=137, help="Select Random Seed")
-    parser.add_argument("--trial", type=int, default=1000, help="Select number of trial")
+    parser.add_argument("--trial", type=int, default=100, help="Select number of trial")
     parser.add_argument('--model', default="EfficientnetB4", help="The model")
     parser.add_argument('--dataset', default="MaskBaseDataset", help="The input dataset type")
     parser.add_argument('--data_dir', default="../../input/train/images", help="The dataset folder path")
