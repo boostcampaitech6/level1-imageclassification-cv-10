@@ -140,7 +140,7 @@ class Parser(object):
 
 
         self.parser.add_argument(
-            '--face_detection',
+            '--face-detection',
             default='False',
             help="Face detection"
         )

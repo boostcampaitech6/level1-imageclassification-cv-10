@@ -18,7 +18,7 @@ from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
 
 from ultralytics import YOLO
-
+from rembg import remove as rembg_model
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
@@ -37,8 +37,10 @@ def train(data_dir, save_dir, args):
 
     detect_model = False
     if args.face_detection != 'False':
-        if args.face_detection == 'Yolo_face_detection':
+        if args.face_detection == 'yolo':
             detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
+        # if args.face_detection == 'rembg':
+        #     detect_model = rembg_model().to(device)
 
     dataset = dataset_module(data_dir=data_dir, face_detection=args.face_detection, detect_model=detect_model)
     
