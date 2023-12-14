@@ -11,6 +11,8 @@ from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.transforms import *
 
+from sklearn.model_selection import train_test_split
+
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
@@ -342,6 +344,31 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         gender_label = self.get_gender_label(index)
         image_transform = self.transform(image)
         return image_transform, gender_label
+
+class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+    
+    def _split_profile(self, profiles, val_ratio):
+        id_list = []
+        new_label_list = []
+        for index, profile in enumerate(profiles):
+            id, gender, race, age = profile.split("_")
+            gender_label = GenderLabels.from_str(gender)
+            age_label = AgeLabels.from_number(age)
+                
+            id_list.append(index)
+            new_label_list.append(self.encode_multi_class(0, gender_label, age_label))
+
+        id_list = np.array(id_list)
+        new_label_list = np.array(new_label_list)
+
+        x_train, x_val, y_train, y_val = train_test_split(id_list, new_label_list, test_size = val_ratio, random_state =777, stratify = new_label_list)
+
+        return {
+            "train" : x_train, 
+            "val" : x_val
+        }
     
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
