@@ -82,6 +82,21 @@ class CustomAugmentation:
         return self.transform(image)
 
 
+class EmphasisAugmentation:
+    def __init__(self,resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ColorJitter( contrast=0.8, saturation=0.5), 
+            RandomAdjustSharpness(sharpness_factor=4),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+
 class MaskLabels(int, Enum):
     MASK = 0
     INCORRECT = 1
@@ -369,8 +384,11 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         return image_transform, gender_label
     
 class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), face_detection='False', detect_model=False):
         self.img_paths = img_paths
+        self.face_detection = face_detection
+        self.detect_model = detect_model
+
         self.transform = transforms.Compose([
             Resize(resize, Image.BILINEAR),
             ToTensor(),
@@ -378,7 +396,11 @@ class TestDataset(Dataset):
         ])
 
     def __getitem__(self, index):
-        image = Image.open(self.img_paths[index])
+        if self.face_detection == 'False':
+            image = Image.open(self.img_paths[index])
+        else:
+            face_detection_module = getattr(import_module("data.preprocess.face_detection"), self.face_detection)
+            image = face_detection_module(self.img_paths[index], self.detect_model)
 
         if self.transform:
             image = self.transform(image)

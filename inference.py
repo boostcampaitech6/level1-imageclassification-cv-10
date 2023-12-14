@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 from data.datasets import TestDataset, MaskBaseDataset
 from utils.argparsers import Parser
 
+from ultralytics import YOLO
+
 def load_model(saved_model, num_classes, device):
     """
     저장된 모델의 가중치를 로드하는 함수입니다.
@@ -61,18 +63,29 @@ def inference(data_dir, model_dir, output_dir, args):
     model = load_model(model_dir, num_classes, device).to(device)
     model.eval()
 
+
+
     # 이미지 파일 경로와 정보 파일을 읽어온다.
     img_root = os.path.join(data_dir, "images")
     info_path = os.path.join(data_dir, "info.csv")
     info = pd.read_csv(info_path)
 
+    # detectio 여부
+    detect_model = False
+    if args.face_detection != 'False':
+        if args.face_detection == 'yolo':
+            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
+        # if args.face_detection == 'rembg':
+        #     detect_model = rembg_model().to(device)
+    
+
     # 이미지 경로를 리스트로 생성한다.
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+    dataset = TestDataset(img_paths, args.resize, face_detection=args.face_detection, detect_model=detect_model )
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2,
+        num_workers=multiprocessing.cpu_count() // 2 if args.face_detection=='False' else 0,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=False,
