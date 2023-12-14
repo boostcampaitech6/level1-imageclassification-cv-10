@@ -4,6 +4,7 @@ def calculate_metrics(true_labels: list[int], predicted_labels: list[int], num_c
     tp = [0] * num_classes
     fp = [0] * num_classes
     fn = [0] * num_classes
+    fp_image = []
 
     accuracy = 0
     precision = [0] * num_classes
@@ -16,6 +17,7 @@ def calculate_metrics(true_labels: list[int], predicted_labels: list[int], num_c
         else:
             fp[predicted_labels[i]] += 1
             fn[true_labels[i]] += 1
+            fp_image.append(i)
 
     accuracy = sum(tp) / len(true_labels)
 
@@ -26,7 +28,7 @@ def calculate_metrics(true_labels: list[int], predicted_labels: list[int], num_c
 
     return {"Total Accuracy": accuracy, "Precision": precision, "Recall": recall, "F1 Score": f1_score, 
             "Total Precision": sum(precision) / num_classes, "Total Recall": sum(recall) / num_classes,
-            "Total F1 Score": sum(f1_score) / num_classes}
+            "Total F1 Score": sum(f1_score) / num_classes, "False Image Indexes": fp_image}
     
 def parse_metric(metrics: dict, label_name: list[str]=None) -> str:
     class_num = len(metrics["F1 Score"])
@@ -46,7 +48,3 @@ def parse_metric(metrics: dict, label_name: list[str]=None) -> str:
         metrics["Total Recall"], metrics["Total F1 Score"], metrics["Total Accuracy"]) + "\n"
     
     return parsed_string
-    
-
-    
-        
