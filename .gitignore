@@ -7,11 +7,15 @@ config/*
 !config/base.yml 
 !config/final.yml
 
-# exclude custom dataset files (only include dataset.py)
+# exclude custom dataset files (include dataset.py and preprocess module)
 !data/
 data/*
 !data/datasets.py
 !data/augmentation.py
+!data/preprocess/
+data/preprocess/*
+!data/preprocess/detection.py
+!data/preprocess/yolov8n-face.pt
 
 # exclude custom model files (only include model.py)
 !model/

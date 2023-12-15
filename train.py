@@ -16,11 +16,13 @@ from utils.loss import create_criterion
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
-
 from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import WeightedRandomSampler
 
 import random
+
+from ultralytics import YOLO
+from rembg import remove as rembg_model
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
@@ -35,21 +37,29 @@ def train(data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    dataset = dataset_module(data_dir=data_dir)
+
+    detect_model = False
+    if args.detection != 'False':
+        if args.detection == 'yolo':
+            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
+        if args.detection == 'rembg':
+            detect_model = rembg_model
+
+    dataset = dataset_module(data_dir=data_dir, detection=args.detection, detect_model=detect_model)
     
     num_classes = dataset.num_classes
 
     transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
-
+    
     train_set, val_set = dataset.split_dataset()
 
     if args.sampler is None:
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
+            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
             shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -62,7 +72,7 @@ def train(data_dir, save_dir, args):
             train_set,
             sampler=ImbalancedDatasetSampler(train_set, labels = labels),
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
+            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else multiprocessing.cpu_count() // 4,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -95,20 +105,21 @@ def train(data_dir, save_dir, args):
             train_set,
             sampler=weightedsampler,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
+            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
         )
 
     val_loader = DataLoader(
-            val_set,
-            batch_size=args.valid_batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            shuffle=False,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
+        val_set,
+        batch_size=args.valid_batch_size,
+        num_workers=multiprocessing.cpu_count()//2 if args.detection=='False' else 0,
+        shuffle=False,
+        pin_memory=use_cuda,
+        drop_last=True,
+    )
+
 
     model_module = getattr(import_module("model.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
@@ -143,10 +154,12 @@ def train(data_dir, save_dir, args):
         train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.max_epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
+
         for train_batch in train_process_bar:
             inputs, labels = train_batch
             inputs = inputs.to(device)
             labels = labels.to(device)
+
 
             optimizer.zero_grad()
 
