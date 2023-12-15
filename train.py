@@ -39,7 +39,7 @@ def train(data_dir, save_dir, args):
     
     num_classes = dataset.num_classes
 
-    transform_module = getattr(import_module("data.datasets"), args.augmentation)
+    transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
 
