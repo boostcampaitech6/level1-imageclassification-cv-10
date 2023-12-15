@@ -11,6 +11,7 @@ config/*
 !data/
 data/*
 !data/datasets.py
+!data/augmentation.py
 
 # exclude custom model files (only include model.py)
 !model/
