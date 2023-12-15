@@ -8,8 +8,10 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
+
 from torchvision import transforms
 from torchvision.transforms import *
+from PIL import Image
 import cv2
 
 from importlib import import_module
@@ -24,64 +26,6 @@ IMG_EXTENSIONS = [
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
-
-
-class BaseAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
-class AddGaussianNoise(object):
-    """
-        transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
-        직접 구현하여 사용할 수 있습니다.
-    """
-    def __init__(self, mean=0., std=1.):
-        self.std = std
-        self.mean = mean
-
-    def __call__(self, tensor):
-        return tensor + torch.randn(tensor.size()) * self.std + self.mean
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-class CustomAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            CenterCrop((320, 256)),
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
-class EmphasisAugmentation:
-    def __init__(self,resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter( contrast = 0.3, saturation=0.5, hue=0.1), 
-            RandomAdjustSharpness(sharpness_factor=8),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
 
 
 class MaskLabels(int, Enum):
@@ -327,6 +271,22 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
+
+class MultiLabelMaskSplitByProfileDataset(MaskSplitByProfileDataset):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+    
+    def __getitem__(self, index):
+        assert self.transform is not None, ".set_tranform 메소드를 이용하여 transform 을 주입해주세요"
+
+        image = self.read_image(index)
+        mask_label = self.get_mask_label(index)
+        gender_label = self.get_gender_label(index)
+        age_label = self.get_age_label(index)
+        multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
+
+        image_transform = self.transform(image)
+        return image_transform, age_label, mask_label, gender_label, multi_class_label
 
 class OnlyAgeDataset(MaskSplitByProfileDataset):
     num_classes = 3

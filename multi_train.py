@@ -16,13 +16,7 @@ from utils.loss import create_criterion
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
-from torchsampler import ImbalancedDatasetSampler
-from torch.utils.data import WeightedRandomSampler
-
-import random
-
-from ultralytics import YOLO
-from rembg import remove as rembg_model
+from data.augmentation import *
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
@@ -37,93 +31,37 @@ def train(data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    # dataset = dataset_module(data_dir=data_dir, detection=args.detection)
-
-    detect_model = False
-    if args.detection != 'False':
-        if args.detection == 'yolo':
-            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
-        if args.detection == 'rembg':
-            detect_model = rembg_model
-
-    dataset = dataset_module(data_dir=data_dir, detection=args.detection, detect_model=detect_model)
+    dataset = dataset_module(data_dir=data_dir)
     
     num_classes = dataset.num_classes
 
     transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
-    
 
-    # num_workers=multiprocessing.cpu_count()//2 if args.detection=='False' else 0,
     train_set, val_set = dataset.split_dataset()
+    
+    # train_set.set_transform(transform)
 
-    if args.sampler is None:
-        train_loader = DataLoader(
-            train_set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
-            shuffle=True,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-
-    #torchsampler에서 제공하는 ImbalancedDatasetSampler를 사용합니다
-    elif args.sampler == "ImbalancedSampler":
-        labels = [train_set[i][1] for i in range(len(train_set))]
-        train_loader = DataLoader(
-            train_set,
-            sampler=ImbalancedDatasetSampler(train_set, labels = labels),
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else multiprocessing.cpu_count() // 4,
-            # shuffle=True,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-
-    #torch.utils에서 제공하는 WeightedSampler를 사용합니다
-    elif args.sampler == "WeightedSampler":
-        #train set의 라벨 분포를 이용해 0부터 17까지 18개의 라벨에 대해 계산한 가중치 값들
-        BASE_WEIGHT = [6.885245901639344,
-                       9.21951219512195,
-                       45.54216867469879,
-                       5.163934426229508,
-                       4.626682986536108,
-                       34.678899082568805,
-                       34.42622950819672,
-                       46.09756097560975,
-                       227.710843373494,
-                       25.81967213114754,
-                       23.133414932680537,
-                       173.39449541284404,
-                       34.42622950819672,
-                       46.09756097560975,
-                       227.710843373494,
-                       25.81967213114754,
-                       23.133414932680537,
-                       173.39449541284404]
-        weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
-        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
-        train_loader = DataLoader(
-            train_set,
-            sampler=weightedsampler,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
-            # shuffle=True,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
+    train_loader = DataLoader(
+        train_set,
+        batch_size=args.batch_size,
+        num_workers=multiprocessing.cpu_count()//2,
+        shuffle=True,
+        pin_memory=use_cuda,
+        drop_last=True,
+    )
 
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count()//2 if args.detection=='False' else 0,
+        num_workers=multiprocessing.cpu_count()//2,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
     )
 
-    model_module = getattr(import_module("model.mymodel"), args.model)
+    model_module = getattr(import_module("model.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
@@ -156,21 +94,32 @@ def train(data_dir, save_dir, args):
         train_process_bar = tqdm(train_loader, desc=train_desc_format.format(epoch, args.max_epochs, 0., 0.), mininterval=0.01)
         train_loss = 0.
         train_acc = 0.
-
         for train_batch in train_process_bar:
-            inputs, labels = train_batch
+            inputs, age_labels, mask_labels, gender_labels, labels = train_batch
             inputs = inputs.to(device)
+            age_labels = age_labels.to(device)
+            mask_labels = mask_labels.to(device)
+            gender_labels = gender_labels.to(device)
             labels = labels.to(device)
-
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            age_output, mask_output, gender_output = model(inputs)
+            
+            age_loss = criterion(age_output, age_labels)
+            mask_loss = criterion(mask_output, mask_labels)
+            gender_loss= criterion(gender_output, gender_labels)
+        
+            loss = age_loss + mask_loss + gender_loss
 
             loss.backward()
             optimizer.step()
+            
+            age_output = torch.argmax(age_output, dim=-1)
+            mask_output = torch.argmax(mask_output, dim=-1)
+            gender_output = torch.argmax(gender_output, dim=-1)
+            
+            preds = age_output + gender_output*3 + mask_output*6
             
             train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
@@ -191,22 +140,39 @@ def train(data_dir, save_dir, args):
                     
             print("Calculate validation set.....")
             for val_batch in val_loader:
-                inputs, labels = val_batch
+                inputs, age_labels, mask_labels, gender_labels, labels = val_batch
                 inputs = inputs.to(device)
+                age_labels = age_labels.to(device)
+                mask_labels = mask_labels.to(device)
+                gender_labels = gender_labels.to(device)
                 labels = labels.to(device)
-
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                
+                age_output, mask_output, gender_output = model(inputs)
+                
+                age_loss = criterion(age_output, age_labels)
+                mask_loss = criterion(mask_output, mask_labels)
+                gender_loss= criterion(gender_output, gender_labels)
+                
+                loss = age_loss + mask_loss + gender_loss
+                
+                val_loss_items.append(loss.item())
+                
+                age_output = torch.argmax(age_output, dim=-1)
+                mask_output = torch.argmax(mask_output, dim=-1)
+                gender_output = torch.argmax(gender_output, dim=-1)
+                
+                preds = age_output + gender_output*3 + mask_output*6
                 
                 results.extend(list(preds.cpu().numpy()))
                 targets.extend(list(labels.cpu().numpy()))
-                
-                loss_item = criterion(outs, labels).item()
-                val_loss_items.append(loss_item)
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
+            
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
             
             if metrics["Total F1 Score"] > best_f1_score:
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
@@ -220,13 +186,6 @@ def train(data_dir, save_dir, args):
             txt_logger.update_string(validation_desc)
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
-
-            # 모델이 잘못 예측한 이미지의 인덱스들 중 10개를 랜덤하게 뽑아서 wandb를 이용해 로깅합니다.
-            false_pred_images = []
-            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
-            for index in random_sample:
-                false_pred_images.append(wb_logger.update_image_with_label(val_set[index][0], results[index].item(), targets[index].item()))
-
             wb_logger.log(
                 {
                     "Train Loss": train_loss / len(train_loader),
@@ -236,14 +195,8 @@ def train(data_dir, save_dir, args):
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
-                    "Image": false_pred_images
                 }
             )
-
-            results.clear()
-            targets.clear()
-            val_loss_items.clear()
-            false_pred_images.clear()
     
     best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
     model.module.load_state_dict(best_weight)
@@ -252,12 +205,21 @@ def train(data_dir, save_dir, args):
         results = []
         targets = []
         for val_batch in val_loader:
-            inputs, labels = val_batch
+            inputs, age_labels, mask_labels, gender_labels, labels = val_batch
             inputs = inputs.to(device)
+            age_labels = age_labels.to(device)
+            mask_labels = mask_labels.to(device)
+            gender_labels = gender_labels.to(device)
             labels = labels.to(device)
-
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
+        
+            age_output, mask_output, gender_output = model(inputs)
+            
+            age_output = torch.argmax(age_output, dim=-1)
+            mask_output = torch.argmax(mask_output, dim=-1)
+            gender_output = torch.argmax(gender_output, dim=-1)
+            
+            preds = age_output + gender_output*3 + mask_output*6
+            
             targets.extend(list(labels.cpu().numpy()))
             results.extend(list(preds.cpu().numpy()))
         
