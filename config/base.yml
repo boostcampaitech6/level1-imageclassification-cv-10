@@ -20,7 +20,7 @@ sampler:
 
 # ==== Training ==== 
 seed: 42
-max_epochs: 10
+max_epochs: 30
 batch_size: 8
 valid_batch_size: 64
 optimizer: Adam

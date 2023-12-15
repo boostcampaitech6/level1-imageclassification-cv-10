@@ -76,6 +76,7 @@ def inference(data_dir, model_dir, output_dir, args):
         if args.detection == 'yolo':
             detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
         # if args.detection == 'rembg':
+        # 수정중
         #     detect_model = rembg_model().to(device)
     
 

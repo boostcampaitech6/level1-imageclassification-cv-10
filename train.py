@@ -37,7 +37,6 @@ def train(data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-    # dataset = dataset_module(data_dir=data_dir, detection=args.detection)
 
     detect_model = False
     if args.detection != 'False':
@@ -54,8 +53,6 @@ def train(data_dir, save_dir, args):
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
     
-
-    # num_workers=multiprocessing.cpu_count()//2 if args.detection=='False' else 0,
     train_set, val_set = dataset.split_dataset()
 
     if args.sampler is None:
@@ -123,7 +120,8 @@ def train(data_dir, save_dir, args):
         drop_last=True,
     )
 
-    model_module = getattr(import_module("model.mymodel"), args.model)
+
+    model_module = getattr(import_module("model.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
