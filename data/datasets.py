@@ -76,8 +76,8 @@ class MaskBaseDataset(Dataset):
         "mask_female_young", "mask_female_middle", "mask_female_old",
         "incorrect_male_young", "incorrect_male_middle", "incorrect_male_old",
         "incorrect_female_young", "incorrect_female_middle", "incorrect_female_old",
-        "nomarl_male_young", "nomarl_male_middle", "nomarl_male_old",
-        "nomarl_female_young", "nomarl_female_middle", "nomarl_female_old",
+        "normal_male_young", "normal_male_middle", "normal_male_old",
+        "normal_female_young", "normal_female_middle", "normal_female_old",
     ]
     
     relabel_dict = {
