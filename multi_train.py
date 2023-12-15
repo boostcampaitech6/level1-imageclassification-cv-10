@@ -16,6 +16,7 @@ from utils.loss import create_criterion
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
+from data.augmentation import *
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
@@ -34,7 +35,7 @@ def train(data_dir, save_dir, args):
     
     num_classes = dataset.num_classes
 
-    transform_module = getattr(import_module("data.datasets"), args.augmentation)
+    transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
 
@@ -67,7 +68,13 @@ def train(data_dir, save_dir, args):
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
-    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
+    if "Adam" in args.optimizer:
+        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
+    elif "RMSprop" == args.optimizer:
+        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4,alpha=0.9, momentum=0.9, eps=1e-08, centered=False)
+    else:
+        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
+        
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
