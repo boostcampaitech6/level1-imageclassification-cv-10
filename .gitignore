@@ -20,6 +20,7 @@ model/*
 
 # exclude uitls cache
 utils/__pycache__
+utils/db.sqlite3
 
 # exclude EDA folder (temporarily)
 EDA/
