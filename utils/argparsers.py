@@ -139,9 +139,9 @@ class Parser(object):
         )
 
         self.parser.add_argument(
-            '--face-detection',
+            '--detection',
             default='False',
-            help="Face detection"
+            help="Detection in Image"
         )
     
     def print_args(self, args):

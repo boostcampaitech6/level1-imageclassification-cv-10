@@ -72,20 +72,20 @@ def inference(data_dir, model_dir, output_dir, args):
 
     # detectio 여부
     detect_model = False
-    if args.face_detection != 'False':
-        if args.face_detection == 'yolo':
+    if args.detection != 'False':
+        if args.detection == 'yolo':
             detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
-        # if args.face_detection == 'rembg':
+        # if args.detection == 'rembg':
         #     detect_model = rembg_model().to(device)
     
 
     # 이미지 경로를 리스트로 생성한다.
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize, face_detection=args.face_detection, detect_model=detect_model )
+    dataset = TestDataset(img_paths, args.resize, detection=args.detection, detect_model=detect_model )
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2 if args.face_detection=='False' else 0,
+        num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=False,

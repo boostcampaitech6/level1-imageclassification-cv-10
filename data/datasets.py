@@ -54,21 +54,6 @@ class AddGaussianNoise(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
-class BestSampleAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = Compose([
-            # CenterCrop((380,380)),
-            Resize(resize, Image.BILINEAR),
-            RandomApply([transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2)], p=1),
-            RandomApply([transforms.RandomHorizontalFlip(p=0.5)], p=1),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
 class CustomAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
@@ -88,8 +73,8 @@ class EmphasisAugmentation:
     def __init__(self,resize, mean, std, **args):
         self.transform = transforms.Compose([
             Resize(resize, Image.BILINEAR),
-            ColorJitter( contrast=0.8, saturation=0.5), 
-            RandomAdjustSharpness(sharpness_factor=4),
+            ColorJitter( contrast = 0.3, saturation=0.5, hue=0.1), 
+            RandomAdjustSharpness(sharpness_factor=8),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -173,7 +158,7 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False', detect_model=False):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, detection='False', detect_model=False):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
@@ -183,7 +168,7 @@ class MaskBaseDataset(Dataset):
         self.setup()
         self.calc_statistics()
 
-        self.face_detection = face_detection
+        self.detection = detection
         self.detect_model = detect_model
 
     def setup(self):
@@ -254,9 +239,9 @@ class MaskBaseDataset(Dataset):
     def read_image(self, index):
         image_path = self.image_paths[index]
 
-        if self.face_detection!='False':
-            face_detection_module = getattr(import_module("data.preprocess.face_detection"), self.face_detection)
-            return face_detection_module(image_path, self.detect_model)
+        if self.detection!='False':
+            detection_module = getattr(import_module("data.preprocess.detection"), self.detection)
+            return detection_module(image_path, self.detect_model)
             
         return Image.open(image_path)
 
@@ -294,9 +279,9 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, face_detection='False', detect_model=False):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, detection='False', detect_model=False):
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio,face_detection, detect_model)
+        super().__init__(data_dir, mean, std, val_ratio, detection, detect_model)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -411,9 +396,9 @@ class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
         }
     
 class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), face_detection='False', detect_model=False):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), detection='False', detect_model=False):
         self.img_paths = img_paths
-        self.face_detection = face_detection
+        self.detection = detection
         self.detect_model = detect_model
 
         self.transform = transforms.Compose([
@@ -423,11 +408,11 @@ class TestDataset(Dataset):
         ])
 
     def __getitem__(self, index):
-        if self.face_detection == 'False':
+        if self.detection == 'False':
             image = Image.open(self.img_paths[index])
         else:
-            face_detection_module = getattr(import_module("data.preprocess.face_detection"), self.face_detection)
-            image = face_detection_module(self.img_paths[index], self.detect_model)
+            detection_module = getattr(import_module("data.preprocess.detection"), self.detection)
+            image = detection_module(self.img_paths[index], self.detect_model)
 
         if self.transform:
             image = self.transform(image)
