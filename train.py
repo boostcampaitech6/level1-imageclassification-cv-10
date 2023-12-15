@@ -181,6 +181,7 @@ def train(data_dir, save_dir, args):
         
         print("Save Metric....")
         save_confusion_matrix(targets, results, num_classes, save_path)
+        wb_logger.log_confusion_matrix(targets, results)
         metrics = calculate_metrics(targets, results, num_classes)
         results.clear()
         targets.clear()
