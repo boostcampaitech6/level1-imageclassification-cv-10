@@ -27,7 +27,7 @@ class Resnet50(nn.Module):
 class MobileNetV2(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.backbone = timm.create_model('mobilenetv2_075', num_classes = num_classes, pretrained=True)
+        self.backbone = timm.create_model('mobilenetv2_100', num_classes = num_classes, pretrained=True)
         
     def forward(self, x):
         x = self.backbone(x)
