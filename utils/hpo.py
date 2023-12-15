@@ -89,7 +89,7 @@ def validation(model, criterion):
 def search_hyperparam(trial):
     lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.005])
     epochs = trial.suggest_int("epochs", low=2, high=10, step=2)
-    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal"])
+    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal", "f1"])
     optimizer = trial.suggest_categorical("optimizer", ["sgd", "adam", "adamw"])
     scheduler = trial.suggest_categorical("scheduler", ["cosine", "step", 'exponential'])
 
