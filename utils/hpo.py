@@ -3,6 +3,7 @@ import numpy as np
 import sys
 
 import optuna
+from optuna.samplers import TPESampler
 
 import torch
 import torch.nn as nn
@@ -87,10 +88,10 @@ def validation(model, criterion):
     return metrics
 
 def search_hyperparam(trial):
-    lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.005])
-    epochs = trial.suggest_int("epochs", low=2, high=10, step=2)
-    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal", "f1"])
-    optimizer = trial.suggest_categorical("optimizer", ["sgd", "adam", "adamw"])
+    lr = trial.suggest_categorical("lr", [0.1, 0.01, 0.05])
+    epochs = trial.suggest_int("epochs", low=3, high=3, step=1)
+    criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal"]) # f1
+    optimizer = trial.suggest_categorical("optimizer", ["sgd", "adam", "adamw", "rmsprop"])
     scheduler = trial.suggest_categorical("scheduler", ["cosine", "step", 'exponential'])
 
     return {
@@ -126,6 +127,8 @@ def objective(trial):
         optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
     elif hyperparams["optimizer"] == "adamw":
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-4)
+    elif hyperparams["optimizer"] == "rmsprop":
+        optimizer = optim.RMSprop(model.parameters(), lr=lr, weight_decay=0.9, momentum=0.9)
     
     if hyperparams["scheduler"] == "cosine":
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
@@ -138,7 +141,6 @@ def objective(trial):
 
     return metrics["Total F1 Score"]
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=128, help="Select batch size")
@@ -149,6 +151,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', default="../../input/train/images", help="The dataset folder path")
     parser.add_argument('--augmentation', default="BaseAugmentation", help="The augmentation method")
     parser.add_argument('--resize', default=[256, 192], help="The input image resize")
+    parser.add_argument('--storage_url', default="sqlite:///db.sqlite3", help="To check study on online url")
     args = parser.parse_args()
 
     seed_everything(args.seed)
@@ -160,7 +163,7 @@ if __name__ == '__main__':
     dataset = dataset_module(data_dir=args.data_dir)
     num_classes = dataset.num_classes
 
-    transform_module = getattr(import_module("data.datasets"), args.augmentation)
+    transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
     dataset.set_transform(transform)
 
@@ -183,7 +186,11 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    study = optuna.create_study(direction="maximize")
+    sampler = TPESampler(seed=args.seed)
+    study = optuna.create_study(direction="maximize",
+                                sampler=sampler,
+                                storage=args.storage_url,
+                                study_name=args.model)
     study.optimize(objective, n_trials=args.trial)
 
     print("Best trial")
