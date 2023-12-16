@@ -30,4 +30,4 @@ lr_decay_step: 20
 log_interval: 50
 
 # ==== Model ==== 
-# model: EfficientnetB4
+model: EfficientnetB4

@@ -1,6 +1,7 @@
 from typing import Any
 import os
 import wandb
+from data.datasets import MaskBaseDataset
 class Logger:
     def __init__(self, save_path: str, file_name :str='log.txt'):
         self.save_path = save_path
@@ -42,7 +43,7 @@ class WeightAndBiasLogger():
         wandb.update(args)
     
     def update_image_with_label(self, image, prediction, truth):
-        return wandb.Image(image, caption = f"Pred: {prediction} Truth: {truth}")
+        return wandb.Image(image, caption = f"Pred: {prediction}, {MaskBaseDataset.class_name[prediction]}" + "\n" + f"Truth: {truth}, {MaskBaseDataset.class_name[truth]}")
         # combined_image = self.combine_image_and_label(image, label)
         # self.update_image(combined_image)
 
@@ -59,3 +60,11 @@ class WeightAndBiasLogger():
             wandb.log(log)
         else:
             raise TypeError('log must be dictonary or convertible to dictionary type.')
+    
+    def log_confusion_matrix(self, targets, results):
+        wandb.log({"confusuion_matrix" : wandb.plot.confusion_matrix(
+                                        probs = None,
+                                        y_true = targets,
+                                        preds = results,
+                                        class_names = MaskBaseDataset.class_name)})
+

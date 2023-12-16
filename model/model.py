@@ -42,6 +42,33 @@ class Densenet169(nn.Module):
         x = self.backbone(x)
         return x
 
+class Squeezenet(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_1', pretrained=True)
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5, inplace = False),
+            nn.Conv2d(512, num_classes, kernel_size = (1, 1), stride = (1, 1)),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        )
+        self.model.classifier = self.classifier
+    
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class ShufflenetV2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'shufflenet_v2_x1_0', pretrained=True)
+        self.classifier = nn.Linear(in_features = 1024, out_features = num_classes, bias = True)
+        self.model.fc = self.classifier
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+    
 class EfficientnetV2s(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()

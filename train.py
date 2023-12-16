@@ -20,9 +20,11 @@ from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import WeightedRandomSampler
 
 import random
+import time
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
+
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
@@ -261,6 +263,7 @@ def train(data_dir, save_dir, args):
         
         print("Save Metric....")
         save_confusion_matrix(targets, results, num_classes, save_path)
+        wb_logger.log_confusion_matrix(targets, results)
         metrics = calculate_metrics(targets, results, num_classes)
         results.clear()
         targets.clear()
@@ -274,6 +277,7 @@ def train(data_dir, save_dir, args):
     txt_logger.close()
     
 if __name__ == '__main__':
+    start_time = time.time()
     p = Parser()
     p.create_parser()
     
@@ -296,3 +300,4 @@ if __name__ == '__main__':
     
     os.makedirs(args.save_dir, exist_ok=True)
     train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
+    print("--- %s seconds ---" % (time.time() - start_time))
