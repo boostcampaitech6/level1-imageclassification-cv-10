@@ -31,6 +31,15 @@ def yolo_detection(img_path, model, limit_size = 0):
 
 
 if __name__ == '__main__':
+    """
+    스크립트에 입력시 
+    python img_preprocess.py [all, yolo, rembg] 형식으로 입력해야 함
+    all : 모든 전처리 수행
+    yolo : yolo 전처리만 수행
+    rembg : rembg 전처리만 수행
+    all로 놓아도 이미 처리된 (저장된) 전처리는 다시 하지 않습니다.
+    """
+    
     task = ['all', 'yolo', 'rembg']
     assert len(sys.argv) == 2 and sys.argv[1] in task, "전처리하고 싶은 Detection : [ all, yolo, rembg ] 중 하나만 입력만 해야 합니다"
 
@@ -48,10 +57,9 @@ if __name__ == '__main__':
         train_image_path = '../input/train/images'
 
         yolo_img_save_path = '../input/train/yolo_images'
-        yolo_model = YOLO('../data/preprocess/yolov8n-face.pt')
+        yolo_model = YOLO('yolov8n-face.pt')
 
-        # yolo 경로가 없을 때 진행
-        print("Image preprocessing by Yolov8n : face detection")
+        print("------- Image preprocessing by Yolov8n : face detection -------")
 
         for image_folder in tqdm(os.listdir(train_image_path)):
             if image_folder.startswith('.'):
@@ -74,12 +82,12 @@ if __name__ == '__main__':
 
 
     # rembg preprocessing
-    
+
     if rembg_task:
         rembg_img_save_path = '../input/train/rembg_images'
         
         
-        print("Image preprocessing by Rembg : remove background")
+        print("------- Image preprocessing by Rembg : remove background -------")
         os.makedirs(rembg_img_save_path, exist_ok=True)
 
         for image_folder in tqdm(os.listdir(train_image_path)):
@@ -90,7 +98,6 @@ if __name__ == '__main__':
 
 
             os.makedirs(rembg_img_folder, exist_ok=True)
-            # images_list = os.listdir(os.path.join(train_image_path,image_folder)
 
             if len(os.listdir(rembg_img_folder)) != 7:
                 for img_name in os.listdir(os.path.join(train_image_path,image_folder)):

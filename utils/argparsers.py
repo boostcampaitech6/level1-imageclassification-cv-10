@@ -137,12 +137,6 @@ class Parser(object):
             default=True,
             help="Try HPO"
         )
-
-        self.parser.add_argument(
-            '--detection',
-            default='False',
-            help="Detection in Image"
-        )
     
     def print_args(self, args):
         print("Arguments:")
