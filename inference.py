@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader
 from data.datasets import TestDataset, MaskBaseDataset
 from utils.argparsers import Parser
 
-from ultralytics import YOLO
 
 def load_model(saved_model, num_classes, device):
     """

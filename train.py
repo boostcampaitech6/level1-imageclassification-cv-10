@@ -22,9 +22,6 @@ from torch.utils.data import WeightedRandomSampler
 import random
 import time
 
-from ultralytics import YOLO
-from rembg import remove as rembg_model
-
 
 def train(data_dir, save_dir, args):
     seed_everything(args.seed)
