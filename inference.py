@@ -70,23 +70,15 @@ def inference(data_dir, model_dir, output_dir, args):
     info_path = os.path.join(data_dir, "info.csv")
     info = pd.read_csv(info_path)
 
-    # detectio 여부
-    detect_model = False
-    if args.detection != 'False':
-        if args.detection == 'yolo':
-            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
-        # if args.detection == 'rembg':
-        # 수정중
-        #     detect_model = rembg_model().to(device)
     
 
     # 이미지 경로를 리스트로 생성한다.
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize, detection=args.detection, detect_model=detect_model )
+    dataset = TestDataset(img_paths, args.resize)
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
-        num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
+        num_workers=multiprocessing.cpu_count() // 2 ,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=False,
@@ -131,7 +123,7 @@ if __name__ == "__main__":
 
     data_dir = args.test_data_dir
     exp_name = args.exp_name + (args.test_exp_num if args.test_exp_num else "")
-    model_dir = args.save_dir + "/{}/weights".format(exp_name)
+    model_dir = args.save_dir  + "/{}/weights".format(exp_name)
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)

@@ -102,7 +102,7 @@ class MaskBaseDataset(Dataset):
     gender_labels = []
     age_labels = []
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, detection='False', detect_model=False):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
@@ -112,15 +112,14 @@ class MaskBaseDataset(Dataset):
         self.setup()
         self.calc_statistics()
 
-        self.detection = detection
-        self.detect_model = detect_model
-
     def setup(self):
+        # 각 이미지를 리스트에 담는 코드
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
             if profile.startswith("."):  # "." 로 시작하는 파일은 무시합니다
                 continue
-
+            
+            # ./input/train/images
             img_folder = os.path.join(self.data_dir, profile)
             for file_name in os.listdir(img_folder):
                 _file_name, ext = os.path.splitext(file_name)
@@ -182,10 +181,6 @@ class MaskBaseDataset(Dataset):
 
     def read_image(self, index):
         image_path = self.image_paths[index]
-
-        if self.detection!='False':
-            detection_module = getattr(import_module("data.preprocess.detection"), self.detection)
-            return detection_module(image_path, self.detect_model)
             
         return Image.open(image_path)
 
@@ -223,9 +218,9 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, detection='False', detect_model=False):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.indices = defaultdict(list)
-        super().__init__(data_dir, mean, std, val_ratio, detection, detect_model)
+        super().__init__(data_dir, mean, std, val_ratio)
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -356,10 +351,8 @@ class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
         }
     
 class TestDataset(Dataset):
-    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), detection='False', detect_model=False):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
-        self.detection = detection
-        self.detect_model = detect_model
 
         self.transform = transforms.Compose([
             Resize(resize, Image.BILINEAR),
@@ -367,12 +360,8 @@ class TestDataset(Dataset):
             Normalize(mean=mean, std=std),
         ])
 
-    def __getitem__(self, index):
-        if self.detection == 'False':
-            image = Image.open(self.img_paths[index])
-        else:
-            detection_module = getattr(import_module("data.preprocess.detection"), self.detection)
-            image = detection_module(self.img_paths[index], self.detect_model)
+    def __getitem__(self, index):        
+        image = Image.open(self.img_paths[index])
 
         if self.transform:
             image = self.transform(image)
