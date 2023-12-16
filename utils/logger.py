@@ -60,3 +60,11 @@ class WeightAndBiasLogger():
             wandb.log(log)
         else:
             raise TypeError('log must be dictonary or convertible to dictionary type.')
+    
+    def log_confusion_matrix(self, targets, results):
+        wandb.log({"confusuion_matrix" : wandb.plot.confusion_matrix(
+                                        probs = None,
+                                        y_true = targets,
+                                        preds = results,
+                                        class_names = MaskBaseDataset.class_name)})
+
