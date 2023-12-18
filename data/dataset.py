@@ -301,7 +301,7 @@ class MaskBaseDataset(Dataset):
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
-        self.indices["train"] = train_set.indices
+
         return train_set, val_set
 
 
