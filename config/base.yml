@@ -27,6 +27,7 @@ valid_batch_size: 64
 optimizer: Adam
 lr: 1e-4
 criterion: focal
+scheduler: cosine
 lr_decay_step: 20
 log_interval: 50
 
