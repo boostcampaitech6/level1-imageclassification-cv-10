@@ -9,13 +9,7 @@ class Parser(object):
     
     def create_parser(self):
         self.parser.add_argument(
-            '--data-dir',
-            default="/data/ephemeral/home/project/../train/train/images",
-            help="The dataset folder path"
-        )
-        
-        self.parser.add_argument(
-            '--val-data-dir',
+            '--train-data-dir',
             default="/input",
             help="The dataset folder path"
         )
@@ -27,13 +21,38 @@ class Parser(object):
         )
         
         self.parser.add_argument(
+            '--val-data-dir',
+            default="/input",
+            help="The dataset folder path"
+        )
+        self.parser.add_argument(
+            '--test-data-dir',
+            default="/input",
+            help="The test dataset folder path"
+        )
+        self.parser.add_argument(
             '--save-dir',
             default="/data/ephemeral/home/project/results/",
             help="The folder is for saving results"
         )
         self.parser.add_argument(
+            '--output-dir',
+            default="./output",
+            help="The folder is for saving results"
+        )
+        self.parser.add_argument(
+            '--project-name',
+            default="exp",
+            help="The wandb project name"
+        )
+        self.parser.add_argument(
             '--exp-name',
             default="train",
+            help="The current experiment name"
+        )
+        self.parser.add_argument(
+            '--test-exp-num',
+            default=None,
             help="The current experiment name"
         )
         self.parser.add_argument(
@@ -114,6 +133,11 @@ class Parser(object):
             help="The learning rate for training"
         )
         self.parser.add_argument(
+            '--scheduler',
+            default="cosine",
+            help="The scheduler for training"
+        )
+        self.parser.add_argument(
             '--lr-decay-step',
             default=100,
             help="The learning rate decay steps"
@@ -140,4 +164,24 @@ class Parser(object):
             default="Efficientnet",
             help="The model"
         )
+        
+        # HPO
+        self.parser.add_argument(
+            '--hpo',
+            default=True,
+            help="Try HPO"
+        )
+
+        self.parser.add_argument(
+            '--cutmix',
+            default=False,
+            help="Cutmix or Mixup in train dataset"
+        )
+    
+    def print_args(self, args):
+        print("Arguments:")
+        for arg in vars(args):
+            print("\t{}: {}".format(arg, getattr(args, arg)))
+
+
         

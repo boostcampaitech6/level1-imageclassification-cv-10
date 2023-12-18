@@ -105,6 +105,69 @@ class ShufflenetV2(nn.Module):
 class EfficientnetV2s(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()
+        self.backbone = timm.create_model('efficientnet_b4', num_classes = num_classes, pretrained = True)
+
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
+    
+class Resnet50(nn.Module):
+    def __init__(self, num_classes = 18):
+        super().__init__()
+        self.backbone = timm.create_model('resnet50',num_classes = num_classes,  pretrained=True)
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
+
+class MobileNetV2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('mobilenetv2_100', num_classes = num_classes, pretrained=True)
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
+
+class Densenet169(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model('densenet169', num_classes = num_classes, pretrained=True)
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        return x
+
+class Squeezenet(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'squeezenet1_1', pretrained=True)
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5, inplace = False),
+            nn.Conv2d(512, num_classes, kernel_size = (1, 1), stride = (1, 1)),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        )
+        self.model.classifier = self.classifier
+    
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class ShufflenetV2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'shufflenet_v2_x1_0', pretrained=True)
+        self.classifier = nn.Linear(in_features = 1024, out_features = num_classes, bias = True)
+        self.model.fc = self.classifier
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+    
+class EfficientnetV2s(nn.Module):
+    def __init__(self, num_classes = 18):
+        super().__init__()
         self.num_classes = num_classes
         self.backbone = timm.create_model('efficientnetv2_rw_s', num_classes = self.num_classes, pretrained = True)
 
@@ -171,3 +234,27 @@ class MultiHeadEfficientnetB4(EfficientnetB4):
         gender = self.gender_fc(x)
                 
         return age, mask, gender
+    
+class Vit(nn.Module):
+
+    def __init__(self, num_classes):
+        super(Vit, self).__init__()
+        self.model = timm.create_model('vit_base_patch16_224', pretrained=True)
+        self.num_ftrs = self.model.head.in_features
+        self.model.head = nn.Linear(self.num_ftrs, num_classes)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+    
+class Swin(nn.Module):
+
+    def __init__(self, num_classes):
+        super(Swin, self).__init__()
+        self.model = timm.create_model('swin_base_patch4_window7_224', pretrained=True)
+        self.num_ftrs = self.model.head.in_features
+        self.model.head = nn.Linear(self.num_ftrs, num_classes)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x

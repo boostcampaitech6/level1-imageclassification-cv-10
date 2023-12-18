@@ -9,6 +9,7 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import torch
+
 from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import WeightedRandomSampler
 from torchvision.transforms import v2
@@ -25,6 +26,7 @@ from data.augmentation import BaseAugmentation
 
 import random
 import time
+from torchvision.transforms import v2
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
@@ -37,8 +39,9 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
     args.save_path = save_path
-    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1])
-    
+
+    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
+
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
@@ -55,6 +58,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
     train_dataset.set_transform(train_transform)
     val_set.set_transform(BaseAugmentation(resize=args.resize, mean=train_set.mean, std=train_set.std))
+
     train_set, val_set = train_dataset, val_dataset
 
     collate = None
@@ -69,7 +73,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
-
     elif args.sampler == "ImbalancedSampler":
         labels = [train_set[i][1] for i in range(len(train_set))]
         train_loader = DataLoader(
@@ -81,7 +84,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
-
     elif args.sampler == "WeightedSampler":
         BASE_WEIGHT = [6.885245901639344,
                        9.21951219512195,
@@ -230,7 +232,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             txt_logger.update_string(validation_desc)
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
-            
+
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:

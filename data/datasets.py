@@ -27,6 +27,10 @@ IMG_EXTENSIONS = [
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
+from torchvision import transforms
+from torchvision.transforms import *
+from PIL import Image
+import cv2
 
 class MaskLabels(int, Enum):
     MASK = 0
@@ -144,11 +148,13 @@ class MaskBaseDataset(Dataset):
         self.calc_statistics()
 
     def setup(self):
+        # 각 이미지를 리스트에 담는 코드
         profiles = os.listdir(self.data_dir)
         for profile in profiles:
             if profile.startswith("."):
                 continue
-
+            
+            # ./input/train/images
             img_folder = os.path.join(self.data_dir, profile)
             for file_name in os.listdir(img_folder):
                 _file_name, ext = os.path.splitext(file_name)
@@ -251,6 +257,12 @@ class MaskBaseDataset(Dataset):
         return img_cp
 
     def split_dataset(self) -> Tuple[Subset, Subset]:
+        """
+        데이터셋을 train 과 val 로 나눕니다,
+        pytorch 내부의 torch.utils.data.random_split 함수를 사용하여
+        torch.utils.data.Subset 클래스 둘로 나눕니다.
+        구현이 어렵지 않으니 구글링 혹은 IDE (e.g. pycharm) 의 navigation 기능을 통해 코드를 한 번 읽어보는 것을 추천드립니다^^
+        """
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
