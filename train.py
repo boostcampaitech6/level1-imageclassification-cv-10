@@ -34,7 +34,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
     args.save_path = save_path
-    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1])
+    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
     
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")

@@ -24,10 +24,10 @@ class Logger:
         self.file.close()
 
 class WeightAndBiasLogger():
-    def __init__(self, config: dict, exp_name: str):
+    def __init__(self, config: dict, exp_name: str, project_name: str='Boost Camp Lv1'):
         if isinstance(config, dict) or hasattr(config, '__dict__'):
             run = wandb.init(
-                project='Boost Camp Lv1',
+                project=project_name,
                 dir=config.save_path,
             )
             assert run is wandb.run
