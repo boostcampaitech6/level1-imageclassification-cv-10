@@ -54,13 +54,13 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         train_dataset = dataset_module(data_dir=train_data_dir)
 
     val_dataset = dataset_module(data_dir=val_data_dir)
-    num_classes = train_set.num_classes
+    num_classes = train_dataset.num_classes
     train_transform_module = getattr(import_module("data.augmentation"), args.augmentation)
     train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
     train_dataset.set_transform(train_transform)
-    val_set.set_transform(BaseAugmentation(resize=args.resize, mean=train_set.mean, std=train_set.std))
+    val_dataset.set_transform(BaseAugmentation(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std))
 
-    train_set, val_set = train_dataset, val_dataset
+    train_dataset, val_dataset = train_dataset, val_dataset
 
     collate = None
     if args.cutmix:
@@ -75,7 +75,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
     if args.sampler is None:
         train_loader = DataLoader(
-            train_set,
+            train_dataset,
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
@@ -84,11 +84,11 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             drop_last=True,
         )
     elif args.sampler == "ImbalancedSampler":
-        print("Imbalanced Sampling in Progress..")
-        labels = [train_set[i][1] for i in range(len(train_set))]
+        labels = [train_dataset[i][1] for i in range(len(train_dataset))]
+
         train_loader = DataLoader(
-            train_set,
-            sampler=ImbalancedDatasetSampler(train_set, labels = labels),
+            train_dataset,
+            sampler=ImbalancedDatasetSampler(train_dataset, labels = labels),
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
@@ -116,11 +116,13 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                        25.81967213114754,
                        23.133414932680537,
                        173.39449541284404]
+
+        weights = [BASE_WEIGHT[train_dataset[i][1]] for i in range(len(train_dataset))]
+        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_dataset), replacement=True)
+
         print("Weighted Sampling in Progress..")
-        weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
-        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
         train_loader = DataLoader(
-            train_set,
+            train_dataset,
             sampler=weightedsampler,
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
@@ -133,7 +135,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         raise ValueError("Please pass a valid sampler argument")
 
     val_loader = DataLoader(
-        val_set,
+        val_dataset,
         batch_size=args.valid_batch_size,
         num_workers=multiprocessing.cpu_count()//2 ,
         shuffle=False,
@@ -255,12 +257,12 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:
-                false_pred_images.append(wb_logger.update_image_with_label(val_set[index][0], results[index].item(), targets[index].item()))
+                false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
 
             wb_logger.log(
                 {
                     "Train Loss": train_loss / len(train_loader),
-                    "Train Accuracy": train_acc / len(train_set),
+                    "Train Accuracy": train_acc / len(train_dataset),
                     "Val Loss": val_loss,
                     "Val Accuracy": metrics["Total Accuracy"],
                     "Val Recall":metrics["Total Recall"],
