@@ -21,6 +21,7 @@ from torch.utils.data import WeightedRandomSampler
 
 import random
 import time
+from torchvision.transforms import v2
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
@@ -61,11 +62,14 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     
     train_set, val_set = train_dataset, val_dataset
 
+    collate = None
+
     if args.sampler is None:
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
+            collate_fn=collate,
             shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -79,6 +83,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             sampler=ImbalancedDatasetSampler(train_set, labels = labels),
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else multiprocessing.cpu_count() // 4,
+            collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -112,6 +117,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             sampler=weightedsampler,
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
+            collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,

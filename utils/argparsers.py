@@ -148,6 +148,12 @@ class Parser(object):
             default='False',
             help="Detection in Image"
         )
+
+        self.parser.add_argument(
+            '--cutmix',
+            default=False,
+            help="Cutmix or Mixup in train dataset"
+        )
     
     def print_args(self, args):
         print("Arguments:")

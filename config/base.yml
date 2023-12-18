@@ -10,7 +10,7 @@ test_exp_num: 8 # inference할 때 사용할 expriment number
 
 # ==== Dataset & Transform ==== 
 dataset: MaskBaseDataset
-augmentation: BaseAugmentation 
+augmentation: AutoAugementation
 resize: [ 
   256,
   192
