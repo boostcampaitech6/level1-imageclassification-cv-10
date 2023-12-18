@@ -6,7 +6,7 @@ import torch
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
+            Resize(resize),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
@@ -41,6 +41,19 @@ class CustomAugmentation:
             ToTensor(),
             Normalize(mean=mean, std=std),
             AddGaussianNoise()
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+
+
+class TestAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
         ])
 
     def __call__(self, image):
