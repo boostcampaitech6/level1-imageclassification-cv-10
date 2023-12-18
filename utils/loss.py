@@ -3,6 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class FocalLoss(nn.Module):
+    """
+    Focal Loss는 클래스 불균형 문제를 해결하기 위해 고안된 손실 함수입니다.
+
+    Parameters
+    ----------
+    weight : Tensor, optional
+        각 클래스에 대한 가중치입니다.
+    gamma : float, default=2.0
+        감마 값으로, 잘못 예측된 샘플에 대한 패널티를 조정합니다.
+    reduction : str, default="mean"
+        손실을 줄이는 방법입니다. 'mean', 'sum', 또는 'none'이 될 수 있습니다.
+    """
     def __init__(self, weight=None, gamma=2.0, reduction="mean"):
         nn.Module.__init__(self)
         self.weight = weight
@@ -10,6 +22,21 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, input_tensor, target_tensor):
+        """
+        Focal Loss를 계산합니다.
+
+        Parameters
+        ----------
+        input_tensor : Tensor
+            모델의 출력 텐서입니다.
+        target_tensor : Tensor
+            정답 레이블 텐서입니다.
+        
+        Returns
+        -------
+        Tensor
+            계산된 손실값입니다.
+        """
         log_prob = F.log_softmax(input_tensor, dim=-1)
         prob = torch.exp(log_prob)
         return F.nll_loss(
@@ -20,7 +47,19 @@ class FocalLoss(nn.Module):
         )
         
 class LabelSmoothingLoss(nn.Module):
-    def __init__(self, classes=3, smoothing=0.0, dim=-1):
+    """
+    레이블 스무딩을 사용한 손실 함수입니다.
+
+    Parameters
+    ----------
+    classes : int, default=3
+        분류할 클래스의 수입니다.
+    smoothing : float, default=0.1
+        스무딩 값으로, 레이블의 분산을 조정합니다.
+    dim : int, default=-1
+        연산을 수행할 차원입니다.
+    """
+    def __init__(self, classes=3, smoothing=0.1, dim=-1):
         super(LabelSmoothingLoss, self).__init__()
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
@@ -28,6 +67,21 @@ class LabelSmoothingLoss(nn.Module):
         self.dim = dim
         
     def forward(self, pred, target):
+        """
+        레이블 스무딩 손실을 계산합니다.
+
+        Parameters
+        ----------
+        pred : Tensor
+            모델의 출력 텐서입니다.
+        target : Tensor
+            정답 레이블 텐서입니다.
+        
+        Returns
+        -------
+        Tensor
+            계산된 손실값입니다.
+        """
         pred = pred.log_softmax(dim=self.dim)
         with torch.no_grad():
             true_dist = torch.zeros_like(pred)
@@ -37,12 +91,37 @@ class LabelSmoothingLoss(nn.Module):
     
 
 class F1Loss(nn.Module):
+    """
+    F1 점수를 기반으로 한 손실 함수입니다.
+
+    Parameters
+    ----------
+    classes : int, default=3
+        분류할 클래스의 수입니다.
+    epsilon : float, default=1e-7
+        수치 안정성을 위한 작은 값입니다.
+    """
     def __init__(self, classes=3, epsilon=1e-7):
         super().__init__()
         self.classes = classes
         self.epsilon = epsilon
         
     def forward(self, y_pred, y_true):
+        """
+        F1 손실을 계산합니다.
+
+        Parameters
+        ----------
+        y_pred : Tensor
+            모델의 출력 텐서입니다.
+        y_true : Tensor
+            정답 레이블 텐서입니다.
+        
+        Returns
+        -------
+        Tensor
+            계산된 F1 손실값입니다.
+        """
         assert y_true.ndim == 1
         assert y_pred.ndim == 1 or y_pred.ndim == 2
         
