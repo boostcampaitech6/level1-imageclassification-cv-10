@@ -138,56 +138,34 @@ class F1Loss(nn.Module):
         
         f1 = 2 * (precision * recall) / (precision + recall + self.epsilon)
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
+        return 1 - f1.mean()
 
-        
+class MSELoss(nn.Module):
+    def __init__(self, reduction='mean'):
+        super().__init__()
+        self.func = nn.MSELoss(reduction=reduction)
+    
+    def forward(self, predictions, targets):
+        return self.func(predictions, targets)
+    
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
+    "mse": MSELoss
 }
 
 def criterion_entrypoint(criterion_name):
-    """
-    주어진 손실 함수 이름에 해당하는 손실 함수
-
-    Args:
-        criterion_name (str): 반환할 손실 함수 이름
-
-    Returns:
-        callable: 주어진 이름에 해당하는 손실 함수
-    """
     return _criterion_entrypoints[criterion_name]
 
 def is_criterion(criterion_name):
-    """
-    주어진 손실 함수 이름이 지원되는지 확인한다.
-
-    Args:
-        criterion_name (str): 확인할 손실 함수 이름
-
-    Returns:
-        bool: 지원되면 True, 그렇지 않으며 False
-    """
     return criterion_name in _criterion_entrypoints
 
-
 def create_criterion(criterion_name, **kwargs):
-    """
-    지정된 인수를 사용하여 손실 함수 객체를 생성한다.
-
-    Args:
-        criterion_name (str): 생성할 손실 함수 이름
-        **kargs: 손실 함수 생성자에 전달된 키워드 인자
-
-    Returns:
-        nn.Module: 생성된 손실 함수 객체
-    """
     if is_criterion(criterion_name):
         create_fn = criterion_entrypoint(criterion_name)
         criterion = create_fn(**kwargs)
     else:
         raise RuntimeError("Unknown loss (%s)" % criterion_name)
     return criterion
-
-

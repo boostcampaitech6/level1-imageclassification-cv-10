@@ -9,15 +9,24 @@ from tqdm import tqdm
 
 from data.dataloader import create_data_loader
 
+from torchsampler import ImbalancedDatasetSampler
+from torch.utils.data import WeightedRandomSampler
+from torchvision.transforms import v2
+
 from utils.plot import save_confusion_matrix
 from utils.util import *
 from utils.loss import create_criterion
+from utils.lr_scheduler import create_scheduler
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
 
+from data.augmentation import BaseAugmentation
+
 import random
 import time
+from torchvision.transforms import v2
+from torch.utils.data import default_collate
 
 from torchvision.transforms import v2
 from ultralytics import YOLO
@@ -104,15 +113,19 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path, weight_path = setup_paths(save_dir, args.exp_name)
     wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
+
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # Get dataset
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-
-    train_dataset = dataset_module(data_dir=train_data_dir)
-    val_dataset = dataset_module(data_dir=val_data_dir)
     
+    if args.age_drop:
+        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=args.age_drop)
+    else:
+        train_dataset = dataset_module(data_dir=train_data_dir)
+
+    val_dataset = dataset_module(data_dir=val_data_dir)
     num_classes = train_dataset.num_classes
 
     # Get transform module
@@ -126,6 +139,15 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     val_dataset.set_transform(val_transform)
 
     collate = None
+    if args.cutmix:
+        if args.cutmix == "cutmix":
+            collate_base = v2.CutMix(num_classes=train_set.num_classes)
+        elif args.cutmix == "mixup":
+            collate_base = v2.MixUp(num_classes=train_set.num_classes)
+        else:
+            raise ValueError("Please provide cutmix or mixup as argument")
+        
+        collate = lambda batch : collate_base(*default_collate(batch))
 
     # Get DataLoader
     train_loader = create_data_loader(train_dataset, args.batch_size, use_cuda, sampler=args.sampler, collate=collate, is_train=True)
@@ -151,6 +173,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     # Train & Validation
     best_val_loss = np.inf
     best_f1_score = 0.
+
     for epoch in range(args.max_epochs):
         model.train()
 
@@ -161,6 +184,8 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
         for train_batch in train_process_bar:
             inputs, labels = train_batch
+            if args.cutmix:
+                labels = torch.argmax(labels, dim=-1)
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -209,7 +234,11 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
-            if metrics["Total F1 Score"] > best_f1_score:
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
+            
+            if metrics["Total F1 Score"] > best_f1_score or (metrics["Total F1 Score"] == best_f1_score and best_val_loss < val_loss):
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
             
@@ -222,7 +251,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            # 모델이 잘못 예측한 이미지의 인덱스들 중 10개를 랜덤하게 뽑아서 wandb를 이용해 로깅합니다.
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:
