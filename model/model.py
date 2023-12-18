@@ -126,57 +126,9 @@ class EfficientNetV2m(nn.Module):
         )
         
     def forward(self, x):
-        return self.model(x)
-
-class MultiHeadEfficientnetB4(EfficientnetB4):
-    def __init__(self, num_classes=8):
-        super().__init__(num_classes)
-        self.num_classes = num_classes
-        
-        backbone = timm.create_model('efficientnet_b4', pretrained=True)
-        self.model = nn.Sequential(*list(backbone.children())[:-1])
-        
-        self.age_fc = nn.Sequential(
-            nn.Linear(1792, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(),
-            nn.Dropout(0.2),
-            
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Linear(256, 3),
-        )
-        self.mask_fc = nn.Sequential(
-            nn.Linear(1792, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Linear(256, 3),
-        )
-        self.gender_fc = nn.Sequential(
-            nn.Linear(1792, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Linear(256, 2),
-        )
-        
-    def forward(self, x):
-        x = self.model(x)
-        
-        age = self.age_fc(x)
-        mask = self.mask_fc(x)
-        gender = self.gender_fc(x)
-                
-        return age, mask, gender
-        
+        x = self.backbone(x)
+        return x
+    
 class Vit(nn.Module):
 
     def __init__(self, num_classes):
@@ -198,9 +150,59 @@ class Swin(nn.Module):
         self.model.head = nn.Linear(self.num_ftrs, num_classes)
 
     def forward(self, x):
+        return self.model(x)
+
+class MultiHeadEfficientnetB4(EfficientnetB4):
+    def __init__(self, num_classes=8):
+        super().__init__(num_classes)
+        self.num_classes = num_classes
+        
+        backbone = timm.create_model('efficientnet_b4', pretrained=True)
+        self.model = nn.Sequential(*list(backbone.children())[:-1])
+        
+        self.age_fc = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Dropout(0.2),
+            
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 3),
+        )
+        
+        self.mask_fc = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 3),
+        )
+        
+        self.gender_fc = nn.Sequential(
+            nn.Linear(1792, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 2),
+        )
+        
+    def forward(self, x):
         x = self.model(x)
-        return x
-    
+        
+        age = self.age_fc(x)
+        mask = self.mask_fc(x)
+        gender = self.gender_fc(x)
+                
+        return age, mask, gender
+
 class StackingEnsembleModel(nn.Module):
     def __init__(self, num_classes=18):
         super().__init__()

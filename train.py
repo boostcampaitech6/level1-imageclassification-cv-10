@@ -1,14 +1,13 @@
-import argparse
 import json
-import multiprocessing
 import os
-from importlib import import_module
-from tqdm import tqdm
+
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
-import torch
+import torch.optim.lr_scheduler as lr_scheduler
+from importlib import import_module
+from tqdm import tqdm
+
+from data.dataloader import create_data_loader
 
 from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import WeightedRandomSampler
@@ -29,151 +28,152 @@ import time
 from torchvision.transforms import v2
 from torch.utils.data import default_collate
 
+from torchvision.transforms import v2
 from ultralytics import YOLO
 from rembg import remove as rembg_model
 
-def train(train_data_dir, val_data_dir, save_dir, args):
-    seed_everything(args.seed)
-    save_path = increment_path(os.path.join(save_dir, args.exp_name))
+def setup_paths(save_dir, exp_name):
+    save_path = increment_path(Path(save_dir) / exp_name)
     create_directory(save_path)
-    weight_path = os.path.join(save_path, 'weights')
+    weight_path = save_path / 'weights'
     create_directory(weight_path)
-    args.save_path = save_path
+    return save_path, weight_path
 
+def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_params=None):
+    """
+    지정된 이름과 매개변수를 사용하여 옵티마이저를 생성한다.
+
+    Args:
+        optimizer_name (str): 생성할 옵티마이저의 이름 (예: 'Adam', 'RMSprop', 'AdamW', 'sgd').
+        model_parameters (iterable): 옵티마이저에 전달할 모델 파라미터.
+        lr (float): 학습률.
+        weight_decay (float): 가중치 감소(정규화) 매개변수.
+        extra_params (dict, optional): 옵티마이저에 추가로 전달할 매개변수.
+
+    Returns:
+        torch.optim.Optimizer: 생성된 옵티마이저.
+    """
+    params = filter(lambda p: p.requires_grad, model_parameters)
+    if optimizer_name == 'Adam':
+        return torch.optim.Adam(params, lr=lr, weight_decay=weight_decay, amsgrad=True)
+    elif optimizer_name == "RMSprop":
+        return torch.optim.RMSprop(params, lr=lr, weight_decay=weight_decay, alpha=0.9, momentum=0.9, eps=1e-08, centered=False)
+    elif optimizer_name == 'AdamW':
+        return torch.optim.AdamW(params, lr=lr, weight_decay=weight_decay, amsgrad=True)
+    elif optimizer_name == "sgd":
+        return torch.optim.SGD(params, lr=lr, momentum=0.9, weight_decay=weight_decay)
+    else:
+        raise ValueError(f"Unknown optimizer: {optimizer_name}")
+    
+def create_scheduler(scheduler_name, optimizer, max_epochs):
+    """
+    지정된 이름과 매개변수를 사용하여 학습률 스케줄러를 생성한다.
+
+    Args:
+        scheduler_name (str): 생성할 스케줄러의 이름 (예: 'cosine', 'step', 'exponential').
+        optimizer (torch.optim.Optimizer): 스케줄러에 연결할 옵티마이저.
+        max_epochs (int): 최대 에폭 수.
+
+    Returns:
+        torch.optim.lr_scheduler._LRScheduler: 생성된 스케줄러.
+    """
+    if scheduler_name == "cosine":
+        return lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
+    elif scheduler_name == "step":
+        return lr_scheduler.StepLR(optimizer, step_size=2)
+    elif scheduler_name == "exponential":
+        return lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
+    else:
+        raise ValueError(f"Unknown scheduler: {scheduler_name}")
+
+def train(train_data_dir, val_data_dir, save_dir, args):
+    """
+    Train a model for image classification.
+
+    이 함수는 이미지 분류를 위한 모델을 학습합니다. 데이터셋을 로드하고, 모델을 초기화하며, 학습 과정을 실행하고, 
+    결과를 로깅하고, 최적의 모델을 저장합니다. 학습 과정에서는 진행 상태가 표시되며, 각 에폭마다 학습 및 검증 손실과
+    정확도가 계산됩니다. 또한, 모델이 잘못 예측한 이미지를 선택하여 로깅할 수 있습니다.
+
+    Parameters
+    ----------
+    train_data_dir : str
+        학습 데이터셋이 위치한 디렉토리의 경로입니다. 이 경로에는 학습에 사용될 이미지 파일들이 포함되어 있습니다.
+
+    val_data_dir : str
+        검증 데이터셋이 위치한 디렉토리의 경로입니다. 모델의 성능을 평가하기 위한 이미지 파일들이 이 경로에 포함되어 있습니다.
+
+    save_dir : str
+        학습된 모델과 로그 파일을 저장할 디렉토리의 경로입니다. 이 경로 내에 모델 가중치와 학습 진행 상황에 대한 로그 파일이 저장됩니다.
+
+    args : Namespace
+        학습 설정을 포함하는 매개변수입니다. 이 객체는 학습률, 배치 크기, 최대 에폭 수, 모델 이름, 최적화 알고리즘 선택 등과 같은
+        다양한 학습 매개변수를 포함할 수 있습니다. 이 매개변수는 명령줄 인수나 설정 파일을 통해 전달될 수 있습니다.
+    """
+    # Initializing
+    seed_everything(args.seed)
+    save_path, weight_path = setup_paths(save_dir, args.exp_name)
     wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
+    # Get dataset
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
     
     if args.age_drop:
-        train_set = dataset_module(data_dir=train_data_dir, age_drop=bool(args.age_drop))
+        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=bool(args.age_drop))
     else:
-        train_set = dataset_module(data_dir=train_data_dir)
+        train_dataset = dataset_module(data_dir=train_data_dir)
 
-    val_set = dataset_module(data_dir=val_data_dir)
-    
-    num_classes = train_set.num_classes
-    
+    val_dataset = dataset_module(data_dir=val_data_dir)
+    num_classes = train_dataset.num_classes
+
+    # Get transform module
     train_transform_module = getattr(import_module("data.augmentation"), args.augmentation)
-    train_transform = train_transform_module(resize=args.resize, mean=train_set.mean, std=train_set.std)
-    train_set.set_transform(train_transform)
-    
-    val_set.set_transform(BaseAugmentation(resize=args.resize, mean=val_set.mean, std=val_set.std))
+    val_transform_module = getattr(import_module("data.augmentation"), "BaseAugmentation")
+
+    train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
+    val_transform = val_transform_module(resize=args.resize, mean=val_dataset.mean, std=val_dataset.std)
+
+    train_dataset.set_transform(train_transform)
+    val_dataset.set_transform(val_transform)
 
     collate = None
     if args.cutmix:
         if args.cutmix == "cutmix":
-            collate_base = v2.CutMix(num_classes=train_set.num_classes)
+            collate_base = v2.CutMix(num_classes=train_dataset.num_classes)
         elif args.cutmix == "mixup":
-            collate_base = v2.MixUp(num_classes=train_set.num_classes)
+            collate_base = v2.MixUp(num_classes=val_dataset.num_classes)
         else:
             raise ValueError("Please provide cutmix or mixup as argument")
         
         collate = lambda batch : collate_base(*default_collate(batch))
 
-    if args.sampler is None:
-        train_loader = DataLoader(
-            train_set,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            collate_fn=collate,
-            shuffle=True,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-    elif args.sampler == "ImbalancedSampler":
-        print("Imbalanced Sampling in Progress..")
-        labels = [train_set[i][1] for i in range(len(train_set))]
-        train_loader = DataLoader(
-            train_set,
-            sampler=ImbalancedDatasetSampler(train_set, labels = labels),
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            collate_fn=collate,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-        print("Done!")
+    # Get DataLoader
+    train_loader = create_data_loader(train_dataset, args.batch_size, use_cuda, sampler=args.sampler, collate=collate, is_train=True)
+    val_loader = create_data_loader(val_dataset, args.valid_batch_size, use_cuda, is_train=False)
 
-    elif args.sampler == "WeightedSampler":
-        BASE_WEIGHT = [6.885245901639344,
-                       9.21951219512195,
-                       45.54216867469879,
-                       5.163934426229508,
-                       4.626682986536108,
-                       34.678899082568805,
-                       34.42622950819672,
-                       46.09756097560975,
-                       227.710843373494,
-                       25.81967213114754,
-                       23.133414932680537,
-                       173.39449541284404,
-                       34.42622950819672,
-                       46.09756097560975,
-                       227.710843373494,
-                       25.81967213114754,
-                       23.133414932680537,
-                       173.39449541284404]
-        print("Weighted Sampling in Progress..")
-        weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
-        weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
-        train_loader = DataLoader(
-            train_set,
-            sampler=weightedsampler,
-            batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2,
-            collate_fn=collate,
-            pin_memory=use_cuda,
-            drop_last=True,
-        )
-        print("Done!")
-    else:
-        raise ValueError("Please pass a valid sampler argument")
-
-    val_loader = DataLoader(
-        val_set,
-        batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count()//2 ,
-        shuffle=False,
-        pin_memory=use_cuda,
-        drop_last=True,
-    )
-
-
+    # Get Model
     model_module = getattr(import_module("model.model"), args.model)
     model = model_module(num_classes=num_classes).to(device)
     model = torch.nn.DataParallel(model)
 
+    # Set criterion, optimizer and scheduler
     criterion = create_criterion(args.criterion)
-    opt_module = getattr(import_module("torch.optim"), args.optimizer)
+    optimizer = create_optimizer(args.optimizer, model.parameters(), float(args.lr), 5e-4)
+    scheduler = create_scheduler(args.scheduler, optimizer, args.max_epochs, step_size=2, gamma=0.5)
 
-    if args.optimizer == 'Adam':
-        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-    elif args.optimizer == "RMSprop":
-        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4,alpha=0.9, momentum=0.9, eps=1e-08, centered=False)
-    elif args.optimizer == 'AdamW':
-        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-    elif args.optimizer == "sgd":
-        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), momentum=0.9, weight_decay=5e-4)
-
-    if args.scheduler == "cosine":
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs)
-    elif args.scheduler == "step":
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2)
-    elif args.scheduler == "exponential":
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
-
+    # Save config file and log
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
     
     txt_logger = Logger(save_path)
     txt_logger.update_string(str(args))
     
+    # Train & Validation
     best_val_loss = np.inf
     best_f1_score = 0.
-    
+
     for epoch in range(args.max_epochs):
         model.train()
 
@@ -188,7 +188,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                 labels = torch.argmax(labels, dim=-1)
             inputs = inputs.to(device)
             labels = labels.to(device)
-
 
             optimizer.zero_grad()
 
@@ -252,15 +251,15 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            # false_pred_images = []
-            # random_sample = list(random.sample(metrics["False Image Indexes"], 10))
-            # for index in random_sample:
-            #     false_pred_images.append(wb_logger.update_image_with_label(val_set[index][0], results[index].item(), targets[index].item()))
+            false_pred_images = []
+            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            for index in random_sample:
+                false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
 
             wb_logger.log(
                 {
                     "Train Loss": train_loss / len(train_loader),
-                    "Train Accuracy": train_acc / len(train_set),
+                    "Train Accuracy": train_acc / len(train_dataset),
                     "Val Loss": val_loss,
                     "Val Accuracy": metrics["Total Accuracy"],
                     "Val Recall":metrics["Total Recall"],
@@ -269,7 +268,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                     # "Image": false_pred_images
                 }
             )
-
             results.clear()
             targets.clear()
             val_loss_items.clear()

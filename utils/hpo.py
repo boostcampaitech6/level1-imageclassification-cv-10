@@ -14,7 +14,7 @@ import argparse
 
 from tqdm import tqdm
 from importlib import import_module
-from util import seed_everything, AverageMeter
+from util import seed_everything
 from metric import calculate_metrics
 from loss import FocalLoss, F1Loss, LabelSmoothingLoss
 
@@ -114,9 +114,9 @@ def objective(trial):
     if hyperparams["criterion"] == "ce": 
         criterion = nn.CrossEntropyLoss()
     elif hyperparams["criterion"] == "smooth":
-        criterion = LabelSmoothingLoss(classes=num_classes)
+        criterion = LabelSmoothingLoss(classes=num_classes, smoothing=0.1)
     elif hyperparams["criterion"] == "focal":
-        criterion = FocalLoss()
+        criterion = FocalLoss(weight=None, gamma=2.0, reduction="mean")
     elif hyperparams["criterion"] == "f1":
         criterion = F1Loss(classes=num_classes)
 
