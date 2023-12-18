@@ -8,25 +8,33 @@ class Parser(object):
         self.parser = argparse.ArgumentParser(description=self.description)
     
     def create_parser(self):
-        # Directory
         self.parser.add_argument(
             '--train-data-dir',
             default="/input",
             help="The dataset folder path"
         )
-        self.parser.add_argument(
-            '--val-data-dir',
-            default="/input",
-            help="The dataset folder path"
-        )
+        
         self.parser.add_argument(
             '--test-data-dir',
             default="/input",
             help="The test dataset folder path"
         )
+        
+        self.parser.add_argument(
+            '--val-data-dir',
+            default="/input",
+            help="The dataset folder path"
+        )
+
+        self.parser.add_argument(
+            '--data-dir',
+            default="/input/dataset/eval",
+            help="The dataset folder path"
+        )
+
         self.parser.add_argument(
             '--save-dir',
-            default="./results",
+            default="/data/ephemeral/home/project/results/",
             help="The folder is for saving results"
         )
         self.parser.add_argument(
@@ -35,8 +43,13 @@ class Parser(object):
             help="The folder is for saving results"
         )
         self.parser.add_argument(
-            '--exp-name',
+            '--project-name',
             default="exp",
+            help="The wandb project name"
+        )
+        self.parser.add_argument(
+            '--exp-name',
+            default="train",
             help="The current experiment name"
         )
         self.parser.add_argument(
@@ -46,14 +59,14 @@ class Parser(object):
         )
         self.parser.add_argument(
             '--config',
-            default='./config/base.yml',
+            default='/data/ephemeral/home/project/config/final_cls_age_rem.yml',
             help='Path to the configuration file'
         )
         
         # Dataset & Transform
         self.parser.add_argument(
             '--dataset',
-            default="BaseDataset",
+            default="MaskSplitByProfileDataset",
             help="The input dataset type (ex. ProfileDataset)"
         )
         self.parser.add_argument(
@@ -61,9 +74,10 @@ class Parser(object):
             default="BaseAugmentation",
             help="The augmentation method"
         )
+        
         self.parser.add_argument(
             '--resize',
-            default=[384, 288],
+            default=[256, 192],
             help="The input image resize"
         )
         self.parser.add_argument(
@@ -71,6 +85,7 @@ class Parser(object):
             default= 0.2,
             help="The dataset split ratio to train/validation"
         )
+        
         self.parser.add_argument(
             '--balanced_split',
             default=True,
@@ -82,20 +97,26 @@ class Parser(object):
             help="The dataloader sampler"
         )
         
+        self.parser.add_argument(
+            '--age_drop',
+            default=False,
+            help="ignore 57~59 age data"
+        )
+        
         # Training
         self.parser.add_argument(
             '--seed',
-            default=777,
+            default=42,
             help="The initial random seed"
         )
         self.parser.add_argument(
-            '--max-epochs',
+            '--max_epochs',
             default=10,
             help="The max epochs"
         )
         self.parser.add_argument(
-            '--batch-size',
-            default=32,
+            '--batch_size',
+            default=128,
             help="The training batch size"
         )
         self.parser.add_argument(
@@ -110,17 +131,25 @@ class Parser(object):
         )
         self.parser.add_argument(
             '--lr',
-            default=0.0001,
+            default=0.001,
             help="The learning rate for training"
         )
+
         self.parser.add_argument(
             '--lr-decay-step',
-            default=777,
+            default=100,
             help="The learning rate decay steps"
         )
+        
+        self.parser.add_argument(
+            '--scheduler',
+            default="cosine",
+            help="The scheduler for training"
+        )
+        
         self.parser.add_argument(
             '--criterion',
-            default="focal",
+            default="cross_entropy",
             help="The loss function"
         )
         self.parser.add_argument(
@@ -132,7 +161,7 @@ class Parser(object):
         # Model
         self.parser.add_argument(
             '--model',
-            default="EfficientnetB4",
+            default="Efficientnet",
             help="The model"
         )
         

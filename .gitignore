@@ -7,12 +7,11 @@ config/*
 !config/base.yml 
 !config/final.yml
 
-# exclude custom dataset files (include dataset.py and preprocess module)
-!data/
-data/*
-!data/datasets.py
-!data/augmentation.py
-
+# exclude custom dataset files (only include dataset.py)
+# !data/
+# data/*
+# !data/datasets.py
+data/__pycache__
 # exclude custom model files (only include model.py)
 !model/
 model/*
@@ -35,6 +34,30 @@ output/
 *.ipynb
 *.tar
 *.gz
+
+# exclude wandb
+wandb/
+
+image_log.txt
+*.sh
+
+# exclude test code
+tests/
+
+#
+.vscode/*
+.vscode/
+
+# exlude xml format
+*.xml
+
+requirements.txt
+
+# exlude csv format
+*.csv
+
+# exclude sh format
+*.sh
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,visualstudiocode,python,jupyternotebooks
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,visualstudiocode,python,jupyternotebooks
