@@ -137,3 +137,24 @@ class MultiHeadEfficientnetB4(EfficientnetB4):
         gender = self.gender_fc(x)
                 
         return age, mask, gender
+    
+class EnsembleModel(nn.Module):
+    def __init__(self, num_classes=18):
+        super().__init__()
+        self.num_classes = num_classes
+        
+        self.model1 = EfficientnetB4(num_classes)
+        self.model2 = ShufflenetV2(num_classes)
+        self.model3 = MobileNetV2(num_classes)
+
+        self.fc = nn.Linear(3*num_classes, num_classes)
+        
+    def forward(self, x):
+        x1 = self.model1(x)
+        x2 = self.model2(x)
+        x3 = self.model3(x)
+        
+        x = torch.cat((x1, x2, x3), dim=1)
+        x = self.fc(x)
+        
+        return x
