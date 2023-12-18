@@ -109,6 +109,11 @@ class Parser(object):
             help="The learning rate for training"
         )
         self.parser.add_argument(
+            '--scheduler',
+            default="cosine",
+            help="The scheduler for training"
+        )
+        self.parser.add_argument(
             '--lr-decay-step',
             default=777,
             help="The learning rate decay steps"

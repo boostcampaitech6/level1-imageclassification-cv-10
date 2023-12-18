@@ -124,14 +124,21 @@ def train(data_dir, save_dir, args):
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
-    if "Adam" in args.optimizer:
+    if args.optimizer == 'Adam':
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-    elif "RMSprop" == args.optimizer:
+    elif args.optimizer == "RMSprop":
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4,alpha=0.9, momentum=0.9, eps=1e-08, centered=False)
-    else:
+    elif args.optimizer == 'AdamW':
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-        
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    elif args.optimizer == "sgd":
+        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), momentum=0.9, weight_decay=5e-4)
+
+    if args.scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs)
+    elif args.scheduler == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2)
+    elif args.scheduler == "exponential":
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
