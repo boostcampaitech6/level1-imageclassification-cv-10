@@ -30,6 +30,11 @@ class Parser(object):
             help="The folder is for saving results"
         )
         self.parser.add_argument(
+            '--project-name',
+            default="exp",
+            help="The wandb project name"
+        )
+        self.parser.add_argument(
             '--exp-name',
             default="exp",
             help="The current experiment name"

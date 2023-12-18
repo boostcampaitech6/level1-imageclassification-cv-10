@@ -4,6 +4,7 @@ data_dir: ./input/train/images # training dataset 경로
 test_data_dir: ./input/eval # inference dataset 경로
 save_dir: ./results # training result 경로
 output_dir: ./output # inference result 경로
+project_name: 'Boost camp Lv1' # wandb project name
 exp_name: exp # training expriment name
 # test_exp_num: 8 # inference할 때 사용할 expriment number
 
