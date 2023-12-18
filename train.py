@@ -230,8 +230,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             txt_logger.update_string(validation_desc)
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
-
-            # 모델이 잘못 예측한 이미지의 인덱스들 중 10개를 랜덤하게 뽑아서 wandb를 이용해 로깅합니다.
+            
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:
