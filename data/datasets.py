@@ -132,11 +132,12 @@ class MaskBaseDataset(Dataset):
         "normal_rembg": MaskLabels.NORMAL
     }
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
+        self.age_drop = age_drop
         
         self.image_paths = []
         self.mask_labels = []
@@ -270,9 +271,10 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
         self.indices = defaultdict(list)
         super().__init__(data_dir, mean, std, val_ratio)
+        self.age_drop = age_drop
 
     @staticmethod
     def _split_profile(profiles, val_ratio):
@@ -365,50 +367,50 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
         image_transform = self.transform(image)
         return image_transform, age_label
 
-# class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
-#     num_classes = 3
-#     class_name = ["young", "middle", "old"]
-#     thresholds = [Age.HIGH, Age.MID, Age.LOW]
-#     age_values = []
+class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
+    num_classes = 3
+    class_name = ["young", "middle", "old"]
+    # thresholds = [Age.HIGH, Age.MID, Age.LOW]
+    age_values = []
     
-#     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
-#         super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
+        super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
         
-#     def setup(self):
-#         profiles = os.listdir(self.data_dir)
-#         profiles = [profile for profile in profiles if not profile.startswith(".")]
-#         split_profiles = self._split_profile(profiles, self.val_ratio)
+    def setup(self):
+        profiles = os.listdir(self.data_dir)
+        profiles = [profile for profile in profiles if not profile.startswith(".")]
+        split_profiles = self._split_profile(profiles, self.val_ratio)
 
-#         cnt = 0
-#         for phase, indices in split_profiles.items():
-#             for _idx in indices:
-#                 profile = profiles[_idx]
-#                 img_folder = os.path.join(self.data_dir, profile)
-#                 for file_name in os.listdir(img_folder):
-#                     _file_name, _ = os.path.splitext(file_name)
-#                     if _file_name not in self._file_names:
-#                         continue
-#                     img_path = os.path.join(self.data_dir, profile, file_name)
-#                     _, _, _, age = profile.split("_")
-#                     if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
-#                         continue
-#                     self.age_values.append(float(age))
-#                     self.age_labels.append(AgeLabels.from_number(age))
-#                     self.image_paths.append(img_path)
-#                     self.indices[phase].append(cnt)
-#                     cnt += 1
+        cnt = 0
+        for phase, indices in split_profiles.items():
+            for _idx in indices:
+                profile = profiles[_idx]
+                img_folder = os.path.join(self.data_dir, profile)
+                for file_name in os.listdir(img_folder):
+                    _file_name, _ = os.path.splitext(file_name)
+                    if _file_name not in self._file_names:
+                        continue
+                    img_path = os.path.join(self.data_dir, profile, file_name)
+                    _, _, _, age = profile.split("_")
+                    if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
+                        continue
+                    self.age_values.append(float(age))
+                    self.age_labels.append(AgeLabels.from_number(age))
+                    self.image_paths.append(img_path)
+                    self.indices[phase].append(cnt)
+                    cnt += 1
     
-#     def get_age_value(self, index):
-#         return self.age_values[index]
+    def get_age_value(self, index):
+        return self.age_values[index]
     
-#     def __getitem__(self, index):
-#         assert self.transform is not None
+    def __getitem__(self, index):
+        assert self.transform is not None
 
-#         image = self.read_image(index)
-#         age_label = self.get_age_label(index)
-#         age_value = self.get_age_value(index)
-#         image_transform = self.transform(image)
-#         return image_transform, (age_value, age_label)
+        image = self.read_image(index)
+        age_label = self.get_age_label(index)
+        age_value = self.get_age_value(index)
+        image_transform = self.transform(image)
+        return image_transform, (age_value, age_label)
     
 class OnlyMaskDataset(MaskSplitByProfileDataset):
     num_classes = 3
@@ -437,32 +439,6 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         gender_label = self.get_gender_label(index)
         image_transform = self.transform(image)
         return image_transform, gender_label
-
-class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
-        super().__init__(data_dir, mean, std, val_ratio)
-    
-    def _split_profile(self, profiles, val_ratio):
-        id_list = []
-        new_label_list = []
-        for index, profile in enumerate(profiles):
-            id, gender, race, age = profile.split("_")
-            gender_label = GenderLabels.from_str(gender)
-            age_label = AgeLabels.from_number(age)
-                
-            id_list.append(index)
-            new_label_list.append(self.encode_multi_class(0, gender_label, age_label))
-
-        id_list = np.array(id_list)
-        new_label_list = np.array(new_label_list)
-
-        x_train, x_val, y_train, y_val = train_test_split(id_list, new_label_list, test_size = val_ratio, random_state =777, stratify = new_label_list)
-
-        return {
-            "train" : x_train, 
-            "val" : x_val
-        }
-    
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
