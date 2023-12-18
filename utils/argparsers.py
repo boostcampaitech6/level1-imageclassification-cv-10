@@ -14,6 +14,11 @@ class Parser(object):
             help="The dataset folder path"
         )
         self.parser.add_argument(
+            '--eval_data_dir',
+            default="/data/ephemeral/home/project/../gender_dataset/val",
+            help="The evaluation dataset folder path"
+        )
+        self.parser.add_argument(
             '--save-dir',
             default="/data/ephemeral/home/project/results/",
             help="The folder is for saving results"
@@ -25,7 +30,7 @@ class Parser(object):
         )
         self.parser.add_argument(
             '--config',
-            default='./config/base.yml',
+            default='/data/ephemeral/home/project/config/final_cls_age_rem.yml',
             help='Path to the configuration file'
         )
         
@@ -63,6 +68,12 @@ class Parser(object):
             help="The dataloader sampler"
         )
         
+        self.parser.add_argument(
+            '--age_drop',
+            default=False,
+            help="ignore 57~59 age data"
+        )
+        
         # Training
         self.parser.add_argument(
             '--seed',
@@ -98,6 +109,11 @@ class Parser(object):
             '--lr-decay-step',
             default=100,
             help="The learning rate decay steps"
+        )
+        self.parser.add_argument(
+            '--scheduler',
+            default=None,
+            help="The learning scheduler"
         )
         self.parser.add_argument(
             '--criterion',
