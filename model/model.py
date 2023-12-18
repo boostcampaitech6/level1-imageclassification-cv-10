@@ -88,7 +88,7 @@ class EfficientnetV2m(nn.Module):
     def forward(self, x):
         x = self.backbone(x)
         return x
-
+    
 class MultiHeadEfficientnetB4(EfficientnetB4):
     def __init__(self, num_classes=8):
         super().__init__(num_classes)
