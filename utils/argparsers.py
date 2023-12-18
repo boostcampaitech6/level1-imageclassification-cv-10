@@ -13,11 +13,19 @@ class Parser(object):
             default="/data/ephemeral/home/project/../train/train/images",
             help="The dataset folder path"
         )
+        
         self.parser.add_argument(
-            '--eval_data_dir',
-            default="/data/ephemeral/home/project/../gender_dataset/val",
-            help="The evaluation dataset folder path"
+            '--val-data-dir',
+            default="/input",
+            help="The dataset folder path"
         )
+        
+        self.parser.add_argument(
+            '--test-data-dir',
+            default="/input",
+            help="The test dataset folder path"
+        )
+        
         self.parser.add_argument(
             '--save-dir',
             default="/data/ephemeral/home/project/results/",
@@ -86,7 +94,7 @@ class Parser(object):
             help="The max epochs"
         )
         self.parser.add_argument(
-            '--batch-size',
+            '--batch_size',
             default=128,
             help="The training batch size"
         )
@@ -112,8 +120,8 @@ class Parser(object):
         )
         self.parser.add_argument(
             '--scheduler',
-            default=None,
-            help="The learning scheduler"
+            default="cosine",
+            help="The scheduler for training"
         )
         self.parser.add_argument(
             '--criterion',

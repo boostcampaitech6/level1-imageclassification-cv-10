@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from data.dataset import TestDataset, MaskBaseDataset
+from data.datasets import TestDataset, MaskBaseDataset
 
 def load_model(saved_model, num_classes, device):
     model_cls = getattr(import_module("models.model"), args.model)

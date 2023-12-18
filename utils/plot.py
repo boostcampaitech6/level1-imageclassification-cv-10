@@ -1,10 +1,16 @@
+import sys
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-from data.dataset import MaskBaseDataset
+
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import os
+
+sys.path.append(".")
+sys.path.append("..")
+
+from data.datasets import MaskBaseDataset
 
 def grid_image(np_images, gts, preds, n=16, shuffle=False):
     batch_size = np_images.shape[0]
