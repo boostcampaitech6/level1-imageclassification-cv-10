@@ -6,6 +6,7 @@ class Parser(object):
         self.parser = argparse.ArgumentParser(description=self.description)
     
     def create_parser(self):
+        # config settings & data paths
         self.parser.add_argument('--train-data-dir', default="/input", help="Path to the training data directory.")
         self.parser.add_argument('--val-data-dir', default="/input", help="Path to the validation data directory.")
         self.parser.add_argument('--test-data-dir', default="/input", help="Path to the test data directory.")
@@ -15,12 +16,18 @@ class Parser(object):
         self.parser.add_argument('--exp-name', default="exp", help="Name of this specific experiment run.")
         self.parser.add_argument('--test-exp-num', default=None, help="Experiment number for the test run.")
         self.parser.add_argument('--config', default='./config/base.yml', help='Path to the configuration file in YAML format.')
+        
+        # dataset & augmentation
         self.parser.add_argument('--dataset', default="BaseDataset", help="Type of dataset to be used (e.g., 'ProfileDataset').")
         self.parser.add_argument('--augmentation', default="BaseAugmentation", help="Augmentation method to be applied to the dataset.")
         self.parser.add_argument('--resize', default=[384, 288], help="Dimensions to which the input images will be resized.")
         self.parser.add_argument('--valid-ratio', default=0.2, help="Ratio for splitting the dataset into training and validation sets.")
         self.parser.add_argument('--balanced-split', default=True, help="Whether to split the dataset in a balanced manner.")
         self.parser.add_argument('--sampler', default="", help="Type of sampler to use for DataLoader.")
+        self.parser.add_argument('--cutmix', default=False, help="Use Cutmix or Mixup data augmentation techniques during training.")
+        self.parser.add_argument('--age-drop', default=True, help="Drop specific ages")
+        
+        # training settings
         self.parser.add_argument('--seed', default=777, help="Seed for random number generation to ensure reproducibility.")
         self.parser.add_argument('--max-epochs', default=10, help="Maximum number of training epochs.")
         self.parser.add_argument('--batch-size', default=32, help="Number of samples per training batch.")
@@ -31,9 +38,12 @@ class Parser(object):
         self.parser.add_argument('--lr-decay-step', default=777, help="Step size for learning rate decay.")
         self.parser.add_argument('--criterion', default="focal", help="Loss function to be used during training.")
         self.parser.add_argument('--log-interval', default=10, help="Interval at which to log training progress.")
+        
+        # model
         self.parser.add_argument('--model', default="EfficientnetB4", help="Model architecture to be used.")
+        
+        # hyperparameter optimization
         self.parser.add_argument('--hpo', default=True, help="Enable Hyperparameter Optimization (HPO).")
-        self.parser.add_argument('--cutmix', default=False, help="Use Cutmix or Mixup data augmentation techniques during training.")
 
     def print_args(self, args):
         print("Arguments:")
