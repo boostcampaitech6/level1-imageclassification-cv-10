@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import timm
+from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
 
 class BaseModel(nn.Module):
     def __init__(self, num_classes):
@@ -71,10 +72,45 @@ class EfficientNet(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+class EfficientNetB2(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('efficientnet_b2', pretrained=True, num_classes=num_classes)
+        
+    def forward(self, x):
+        return self.model(x)
+
 class EfficientNetB4(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = timm.create_model('efficientnet_b4', pretrained=True, num_classes=num_classes)
+        
+    def forward(self, x):
+        return self.model(x)
+
+class EfficientNetB5(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('efficientnet_b5', pretrained=True, num_classes=num_classes)
+        
+    def forward(self, x):
+        return self.model(x)
+    
+class EfficientNetV2m(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = efficientnet_v2_m(weights=EfficientNet_V2_M_Weights.IMAGENET1K_V1)
+        self.model.classifier = nn.Sequential(
+            nn.Linear(1280, num_classes)
+        )
+        
+    def forward(self, x):
+        return self.model(x)
+    
+class ConvNextB(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = timm.create_model('convnext_base', pretrained=True, num_classes=num_classes)
         
     def forward(self, x):
         return self.model(x)
