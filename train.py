@@ -27,6 +27,7 @@ from data.augmentation import BaseAugmentation
 import random
 import time
 from torchvision.transforms import v2
+from torch.utils.data import default_collate
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
@@ -62,6 +63,15 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     train_set, val_set = train_dataset, val_dataset
 
     collate = None
+    if args.cutmix:
+        if args.cutmix == "cutmix":
+            collate_base = v2.CutMix(num_classes=train_set.num_classes)
+        elif args.cutmix == "mixup":
+            collate_base = v2.MixUp(num_classes=train_set.num_classes)
+        else:
+            raise ValueError("Please provide cutmix or mixup as argument")
+        
+        collate = lambda batch : collate_base(*default_collate(batch))
 
     if args.sampler is None:
         train_loader = DataLoader(
@@ -74,6 +84,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             drop_last=True,
         )
     elif args.sampler == "ImbalancedSampler":
+        print("Imbalanced Sampling in Progress..")
         labels = [train_set[i][1] for i in range(len(train_set))]
         train_loader = DataLoader(
             train_set,
@@ -84,6 +95,8 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
+        print("Done!")
+
     elif args.sampler == "WeightedSampler":
         BASE_WEIGHT = [6.885245901639344,
                        9.21951219512195,
@@ -103,6 +116,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                        25.81967213114754,
                        23.133414932680537,
                        173.39449541284404]
+        print("Weighted Sampling in Progress..")
         weights = [BASE_WEIGHT[train_set[i][1]] for i in range(len(train_set))]
         weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(train_set), replacement=True)
         train_loader = DataLoader(
@@ -114,6 +128,9 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
+        print("Done!")
+    else:
+        raise ValueError("Please pass a valid sampler argument")
 
     val_loader = DataLoader(
         val_set,
@@ -167,6 +184,8 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
         for train_batch in train_process_bar:
             inputs, labels = train_batch
+            if args.cutmix:
+                labels = torch.argmax(labels, dim=-1)
             inputs = inputs.to(device)
             labels = labels.to(device)
 
