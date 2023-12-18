@@ -32,10 +32,10 @@ class BaseAugmentation:
 class GenderAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            RandomHorizontalFlip(p=0.5),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
+            transforms.Resize(resize, Image.BILINEAR),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
         ])
 
     def __call__(self, image):
@@ -44,10 +44,10 @@ class GenderAugmentation:
 class AgeAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            RandomHorizontalFlip(p=0.5),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
+            transforms.Resize(resize, Image.BILINEAR),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
         ])
         
     def __call__(self, image):                
@@ -56,10 +56,10 @@ class AgeAugmentation:
 class MaskAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            RandomHorizontalFlip(p=0.5),
-            ToTensor(),
-            Normalize(mean=mean, std=std)
+            transforms.Resize(resize, Image.BILINEAR),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
         ])
         
     def __call__(self, image):                

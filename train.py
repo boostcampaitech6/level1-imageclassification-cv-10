@@ -141,9 +141,9 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     collate = None
     if args.cutmix:
         if args.cutmix == "cutmix":
-            collate_base = v2.CutMix(num_classes=train_set.num_classes)
+            collate_base = v2.CutMix(num_classes=train_dataset.num_classes)
         elif args.cutmix == "mixup":
-            collate_base = v2.MixUp(num_classes=train_set.num_classes)
+            collate_base = v2.MixUp(num_classes=val_dataset.num_classes)
         else:
             raise ValueError("Please provide cutmix or mixup as argument")
         

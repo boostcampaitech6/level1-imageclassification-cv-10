@@ -1,3 +1,5 @@
+import numpy as np
+
 def calculate_metrics(true_labels: list[int], predicted_labels: list[int], num_classes: int) -> dict:
     """
     주어진 실제 레이블과 예측 레이블을 기반으로 메트릭을 계산한다.

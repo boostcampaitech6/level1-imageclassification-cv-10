@@ -6,6 +6,9 @@ from enum import Enum
 from typing import Tuple, List
 import math
 
+import numpy as np
+from PIL import Image
+
 from enum import Enum
 from typing import Tuple, List
 from collections import defaultdict
