@@ -9,7 +9,9 @@ def calculate_metrics(true_labels: list[int], predicted_labels: list[int], num_c
     precision = [0] * num_classes
     recall = [0] * num_classes
     f1_score = [0] * num_classes
-
+    
+    true_labels = np.array(true_labels, np.int64)
+    predicted_labels = np.array(predicted_labels, np.int64)
     for i in range(len(true_labels)):
         if true_labels[i] == predicted_labels[i]:
             tp[true_labels[i]] += 1
