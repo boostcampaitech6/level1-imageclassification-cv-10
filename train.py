@@ -10,14 +10,19 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import torch
 
+from torchsampler import ImbalancedDatasetSampler
+from torch.utils.data import WeightedRandomSampler
+from torchvision.transforms import v2
+
 from utils.plot import save_confusion_matrix
 from utils.util import *
 from utils.loss import create_criterion
+from utils.lr_scheduler import create_scheduler
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
-from torchsampler import ImbalancedDatasetSampler
-from torch.utils.data import WeightedRandomSampler
+
+from data.augmentation import BaseAugmentation
 
 import random
 import time
@@ -34,26 +39,26 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
     args.save_path = save_path
+
     wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
-    
+
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
+    
+    if args.age_drop:
+        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=args.age_drop)
+    else:
+        train_dataset = dataset_module(data_dir=train_data_dir)
 
-    #train/val 폴더가 나뉘었으므로 데이터셋도 train_set, val_set 두 개로 나누어 생성합니다
-    train_dataset = dataset_module(data_dir=train_data_dir)
     val_dataset = dataset_module(data_dir=val_data_dir)
-    
-    num_classes = train_dataset.num_classes
-
+    num_classes = train_set.num_classes
     train_transform_module = getattr(import_module("data.augmentation"), args.augmentation)
-    val_transform_module = getattr(import_module("data.augmentation"), "BaseAugmentation")
     train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
-    val_transform = val_transform_module(resize=args.resize, mean=val_dataset.mean, std=val_dataset.std)
     train_dataset.set_transform(train_transform)
-    val_dataset.set_transform(val_transform)
-    
+    val_set.set_transform(BaseAugmentation(resize=args.resize, mean=train_set.mean, std=train_set.std))
+
     train_set, val_set = train_dataset, val_dataset
 
     collate = None
@@ -68,8 +73,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             pin_memory=use_cuda,
             drop_last=True,
         )
-
-    #torchsampler에서 제공하는 ImbalancedDatasetSampler를 사용합니다
     elif args.sampler == "ImbalancedSampler":
         labels = [train_set[i][1] for i in range(len(train_set))]
         train_loader = DataLoader(
@@ -78,14 +81,10 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
-            # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
         )
-
-    #torch.utils에서 제공하는 WeightedSampler를 사용합니다
     elif args.sampler == "WeightedSampler":
-        #train set의 라벨 분포를 이용해 0부터 17까지 18개의 라벨에 대해 계산한 가중치 값들
         BASE_WEIGHT = [6.885245901639344,
                        9.21951219512195,
                        45.54216867469879,
@@ -112,7 +111,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             batch_size=args.batch_size,
             num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
-            # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
         )
@@ -158,7 +156,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     
     best_val_loss = np.inf
     best_f1_score = 0.
-    best_val_f1_score = 0
     
     for epoch in range(args.max_epochs):
         model.train()
@@ -219,7 +216,11 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
-            if metrics["Total F1 Score"] > best_f1_score:
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
+            
+            if metrics["Total F1 Score"] > best_f1_score or (metrics["Total F1 Score"] == best_f1_score and best_val_loss < val_loss):
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
             
@@ -232,7 +233,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            # 모델이 잘못 예측한 이미지의 인덱스들 중 10개를 랜덤하게 뽑아서 wandb를 이용해 로깅합니다.
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:

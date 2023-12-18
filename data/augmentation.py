@@ -1,5 +1,9 @@
 from torchvision import transforms
 from torchvision.transforms import *
+
+from PIL import Image
+import torch
+
 import torchvision.transforms.functional as TF
 from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFilter
 import torch
@@ -18,7 +22,41 @@ class BaseAugmentation:
 
     def __call__(self, image):
         return self.transform(image)
+class GenderAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            RandomHorizontalFlip(p=0.5),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
 
+    def __call__(self, image):
+        return self.transform(image)
+
+class AgeAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            RandomHorizontalFlip(p=0.5),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+        
+    def __call__(self, image):                
+        return self.transform(image)
+
+class MaskAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            RandomHorizontalFlip(p=0.5),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+        
+    def __call__(self, image):                
+        return self.transform(image)
 
 class AddGaussianNoise(object):
     """
@@ -50,8 +88,6 @@ class CustomAugmentation:
 
     def __call__(self, image):
         return self.transform(image)
-
-
 
 random_mirror = True
 
@@ -271,8 +307,6 @@ class Augmentation(object):
                 img = apply_augment(img, name, level)
         return img
     
-
-
 class RandAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.basetransform = transforms.Compose([

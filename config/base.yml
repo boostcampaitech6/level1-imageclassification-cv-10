@@ -1,3 +1,4 @@
+
 # ==== Directory ====
 config: ./config/base.yml  # 실험에 사용할 yaml 파일 경로
 train_data_dir: ./input/dataset/train/ # training dataset 경로
