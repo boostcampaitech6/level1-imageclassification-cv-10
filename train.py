@@ -121,7 +121,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
     
     if args.age_drop:
-        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=args.age_drop)
+        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=bool(args.age_drop))
     else:
         train_dataset = dataset_module(data_dir=train_data_dir)
 
@@ -265,13 +265,13 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
-                    "Image": false_pred_images
+                    # "Image": false_pred_images
                 }
             )
             results.clear()
             targets.clear()
             val_loss_items.clear()
-            false_pred_images.clear()
+            # false_pred_images.clear()
     
     best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
     model.module.load_state_dict(best_weight)
@@ -296,7 +296,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, val_dataset.class_name)
+        parsed_metric = parse_metric(metrics, val_set.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")

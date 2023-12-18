@@ -143,11 +143,12 @@ class MaskBaseDataset(Dataset):
         "normal_rembg": MaskLabels.NORMAL
     }
 
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
+        self.age_drop = age_drop
         
         self.image_paths = []
         self.mask_labels = []
@@ -391,6 +392,7 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
 class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
     num_classes = 3
     class_name = ["young", "middle", "old"]
+    # thresholds = [Age.HIGH, Age.MID, Age.LOW]
     age_values = []
     
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
