@@ -13,14 +13,11 @@ import torch
 from utils.plot import save_confusion_matrix
 from utils.util import *
 from utils.loss import create_criterion
-from utils.lr_scheduler import create_scheduler
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
 
-from data.dataset import BaseAugmentation
-
-def train(data_dir, eval_data_dir, save_dir, args):
+def train(data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
     create_directory(save_path)
@@ -33,20 +30,16 @@ def train(data_dir, eval_data_dir, save_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.dataset"), args.dataset)
+    dataset = dataset_module(data_dir=data_dir)
     
-    if args.age_drop:
-        train_set = dataset_module(data_dir=data_dir, age_drop=args.age_drop)
-    else:
-        train_set = dataset_module(data_dir=data_dir)
-    
-    num_classes = train_set.num_classes
+    num_classes = dataset.num_classes
+
     transform_module = getattr(import_module("data.dataset"), args.augmentation)
-    transform = transform_module(resize=args.resize, mean=train_set.mean, std=train_set.std)
-    train_set.set_transform(transform)
-    
-    val_set = dataset_module(data_dir=eval_data_dir)
-    val_set.set_transform(BaseAugmentation(resize=args.resize, mean=train_set.mean, std=train_set.std))
-    
+    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
+    dataset.set_transform(transform)
+
+    train_set, val_set = dataset.split_dataset()
+
     train_loader = DataLoader(
         train_set,
         batch_size=args.batch_size,
@@ -58,7 +51,7 @@ def train(data_dir, eval_data_dir, save_dir, args):
 
     val_loader = DataLoader(
         val_set,
-        batch_size=args.valid_batch_size,
+        batch_size=args.batch_size,
         num_workers=multiprocessing.cpu_count()//2,
         shuffle=False,
         pin_memory=use_cuda,
@@ -66,15 +59,14 @@ def train(data_dir, eval_data_dir, save_dir, args):
     )
 
     model_module = getattr(import_module("models.model"), args.model)
-    model = model_module(num_classes=num_classes).to(device)
+    model = model_module(num_classes=1).to(device)
     model = torch.nn.DataParallel(model)
 
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
     optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4, amsgrad=True)
-    
-    scheduler = create_scheduler(args.scheduler, optimizer=optimizer, epoch=args.max_epochs)
+    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
@@ -95,28 +87,34 @@ def train(data_dir, eval_data_dir, save_dir, args):
         for train_batch in train_process_bar:
             inputs, labels = train_batch
             inputs = inputs.to(device)
-            labels = labels.to(device)
+            target_values, target_labels = labels
+            target_values = target_values.type(torch.float32).to(device)
+            target_labels = target_labels.to(device)
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            outs = model(inputs).squeeze(-1)
+            preds = torch.zeros((args.batch_size)).cuda()
+
+            for idx in range(dataset.num_classes):
+                preds[outs < dataset.thresholds[idx]] = num_classes - idx - 1
+
+            loss = criterion(outs, target_values)
 
             loss.backward()
             optimizer.step()
             
             train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
-                (preds == labels).sum().item() / args.batch_size)
+                (preds == target_labels).sum().item() / args.batch_size)
             train_process_bar.set_description(train_desc)
             
             train_loss += loss.item()
-            train_acc += (preds == labels).sum().item()
+            train_acc += (preds == target_labels).sum().item()
         
         train_process_bar.close()
         txt_logger.update_string(train_desc)
         scheduler.step()
-
+        
         with torch.no_grad():
             model.eval()
             val_loss_items = []
@@ -127,15 +125,19 @@ def train(data_dir, eval_data_dir, save_dir, args):
             for val_batch in val_loader:
                 inputs, labels = val_batch
                 inputs = inputs.to(device)
-                labels = labels.to(device)
+                target_values, target_labels = labels
+                target_values = target_values.to(device)
+                target_labels = target_labels.to(device)
 
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                outs = model(inputs).squeeze(-1)
+                preds = torch.zeros((args.batch_size))
+                for idx in range(num_classes):
+                    preds[outs < dataset.thresholds[idx]] = num_classes - idx - 1
+
+                results.extend(list(preds.cpu().type(torch.int64).numpy()))
+                targets.extend(list(target_labels.cpu().type(torch.int64).numpy()))
                 
-                results.extend(list(preds.cpu().numpy()))
-                targets.extend(list(labels.cpu().numpy()))
-                
-                loss_item = criterion(outs, labels).item()
+                loss_item = criterion(outs, target_values).item()
                 val_loss_items.append(loss_item)
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
@@ -146,10 +148,10 @@ def train(data_dir, eval_data_dir, save_dir, args):
             targets.clear()
             val_loss_items.clear()
             
-            if metrics["Total F1 Score"] > best_f1_score or (metrics["Total F1 Score"] == best_f1_score and best_val_loss < val_loss):
+            if metrics["Total F1 Score"] > best_f1_score:
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
-                
+            
             validation_desc = \
                 "Validation Loss: {:3.7f}, Validation Acc.: {:3.4f}, Precision: {:3.4f}, Recall: {:3.4f}, F1 Score: {:3.4f}, Best Validation F1 Score.:{:3.4f}".\
                 format(val_loss, metrics["Total Accuracy"], metrics["Total Precision"], metrics["Total Recall"], metrics["Total F1 Score"], best_f1_score)
@@ -179,12 +181,17 @@ def train(data_dir, eval_data_dir, save_dir, args):
         for val_batch in val_loader:
             inputs, labels = val_batch
             inputs = inputs.to(device)
-            labels = labels.to(device)
+            target_values, target_labels = labels
+            target_values = target_values.to(device)
+            target_labels = target_labels.to(device)
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            targets.extend(list(labels.cpu().numpy()))
-            results.extend(list(preds.cpu().numpy()))
+            outs = model(inputs).squeeze(-1)
+            preds = torch.zeros((args.batch_size, 1))
+            for idx in range(num_classes):
+                preds[outs < dataset.thresholds[idx]] = num_classes - idx - 1
+
+            results.extend(list(preds.cpu().type(torch.int64).numpy()))
+            targets.extend(list(target_labels.cpu().type(torch.int64).numpy()))
         
         print("Save Metric....")
         save_confusion_matrix(targets, results, num_classes, save_path)
@@ -192,7 +199,7 @@ def train(data_dir, eval_data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, train_set.class_name)
+        parsed_metric = parse_metric(metrics, dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
@@ -220,4 +227,4 @@ if __name__ == '__main__':
         
     args = p.parser.parse_args()  
     
-    train(data_dir=args.data_dir, eval_data_dir=args.eval_data_dir, save_dir=args.save_dir, args=args)
+    train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
