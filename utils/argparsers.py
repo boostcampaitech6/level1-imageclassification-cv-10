@@ -25,11 +25,7 @@ class Parser(object):
             default="/input",
             help="The dataset folder path"
         )
-        self.parser.add_argument(
-            '--test-data-dir',
-            default="/input",
-            help="The test dataset folder path"
-        )
+
         self.parser.add_argument(
             '--save-dir',
             default="/data/ephemeral/home/project/results/",
@@ -132,21 +128,19 @@ class Parser(object):
             default=0.001,
             help="The learning rate for training"
         )
-        self.parser.add_argument(
-            '--scheduler',
-            default="cosine",
-            help="The scheduler for training"
-        )
+
         self.parser.add_argument(
             '--lr-decay-step',
             default=100,
             help="The learning rate decay steps"
         )
+        
         self.parser.add_argument(
             '--scheduler',
             default="cosine",
             help="The scheduler for training"
         )
+        
         self.parser.add_argument(
             '--criterion',
             default="cross_entropy",

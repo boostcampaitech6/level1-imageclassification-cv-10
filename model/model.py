@@ -1,14 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights
 
 import timm
 
-import os
-
-    
 class EfficientnetB0(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -48,6 +44,7 @@ class ConvNextB(nn.Module):
         
     def forward(self, x):
         return self.model(x)
+    
 class Resnet50(nn.Module):
     def __init__(self, num_classes = 18):
         super().__init__()
@@ -205,6 +202,7 @@ class MultiHeadEfficientnetB4(EfficientnetB4):
             nn.LeakyReLU(),
             nn.Linear(256, 3),
         )
+        
         self.mask_fc = nn.Sequential(
             nn.Linear(1792, 512),
             nn.BatchNorm1d(512),
@@ -215,6 +213,7 @@ class MultiHeadEfficientnetB4(EfficientnetB4):
             nn.LeakyReLU(),
             nn.Linear(256, 3),
         )
+        
         self.gender_fc = nn.Sequential(
             nn.Linear(1792, 512),
             nn.BatchNorm1d(512),
