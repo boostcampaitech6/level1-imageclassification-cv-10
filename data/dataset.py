@@ -3,13 +3,14 @@ import random
 from collections import defaultdict
 from enum import Enum
 from typing import Tuple, List
-
+import math
 import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.transforms import *
+import torchvision
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -31,40 +32,48 @@ class BaseAugmentation:
 
     def __call__(self, image):
         return self.transform(image)
-
-
-class AddGaussianNoise(object):
-    """
-        transform 에 없는 기능들은 이런식으로 __init__, __call__, __repr__ 부분을
-        직접 구현하여 사용할 수 있습니다.
-    """
-
-    def __init__(self, mean=0., std=1.):
-        self.std = std
-        self.mean = mean
-
-    def __call__(self, tensor):
-        return tensor + torch.randn(tensor.size()) * self.std + self.mean
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-
-
-class CustomAugmentation:
+    
+class GenderAugmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            CenterCrop((320, 256)),
             Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),
+            RandomHorizontalFlip(p=0.5),
             ToTensor(),
             Normalize(mean=mean, std=std),
-            AddGaussianNoise()
         ])
 
     def __call__(self, image):
         return self.transform(image)
 
+class AgeAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            RandomHorizontalFlip(p=0.5),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+        
+    def __call__(self, image):                
+        return self.transform(image)
 
+class MaskAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            RandomHorizontalFlip(p=0.5),
+            ToTensor(),
+            Normalize(mean=mean, std=std)
+        ])
+        
+    def __call__(self, image):                
+        return self.transform(image)
+
+class Age(float, Enum):
+    LOW = 30
+    MID = 60
+    HIGH = math.inf
+    
 class MaskLabels(int, Enum):
     MASK = 0
     INCORRECT = 1
@@ -143,7 +152,7 @@ class MaskBaseDataset(Dataset):
         'incorrect_to_from_normal': ['000020', '004418', '005227'],             
         'incorrect_to_mask': ['000645', '003574'],                              
         'incorrect_gender': ['001200', '004432', '005223', '001498-1', '000725',
-                             '006359', '006360', '006361', '006362', '006363', '006364'] 
+                             '006359', '006360', '006361', '006362', '006363', '006364', '001720'] 
     }
     
     ignores = ["003399"]
@@ -155,20 +164,27 @@ class MaskBaseDataset(Dataset):
         "mask4": MaskLabels.MASK,
         "mask5": MaskLabels.MASK,
         "incorrect_mask": MaskLabels.INCORRECT,
-        "normal": MaskLabels.NORMAL
+        "normal": MaskLabels.NORMAL,
+        "mask1_rembg": MaskLabels.MASK,
+        "mask2_rembg": MaskLabels.MASK,
+        "mask3_rembg": MaskLabels.MASK,
+        "mask4_rembg": MaskLabels.MASK,
+        "mask5_rembg": MaskLabels.MASK,
+        "incorrect_mask_rembg": MaskLabels.INCORRECT,
+        "normal_rembg": MaskLabels.NORMAL
     }
-
-    image_paths = []
-    mask_labels = []
-    gender_labels = []
-    age_labels = []
-
+    
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
-
+        
+        self.image_paths = []
+        self.mask_labels = []
+        self.gender_labels = []
+        self.age_labels = []
+        
         self.transform = None
         self.setup()
         self.calc_statistics()
@@ -186,10 +202,11 @@ class MaskBaseDataset(Dataset):
                     continue
                     
                 img_path = os.path.join(self.data_dir, profile, file_name)
+                    
                 mask_label = self._file_names[_file_name]
 
                 id, gender, _, age = profile.split("_")
-                
+                    
                 if id in self.ignores:
                     continue
                 
@@ -198,7 +215,7 @@ class MaskBaseDataset(Dataset):
                     
                 if id in self.relabel_dict['incorrect_to_mask']:
                     mask_label = change_incorrect_to_mask(_file_name)
-                
+                    
                 if id in self.relabel_dict['incorrect_gender']:
                     gender = change_gender(gender)
                     
@@ -236,7 +253,7 @@ class MaskBaseDataset(Dataset):
         gender_label = self.get_gender_label(index)
         age_label = self.get_age_label(index)
         multi_class_label = self.encode_multi_class(mask_label, gender_label, age_label)
-
+        
         image_transform = self.transform(image)
         return image_transform, multi_class_label
 
@@ -254,7 +271,11 @@ class MaskBaseDataset(Dataset):
 
     def read_image(self, index):
         image_path = self.image_paths[index]
-        return Image.open(image_path)
+        img_array = np.array(Image.open(image_path))
+        if img_array.shape[-1] == 3:
+            return Image.fromarray(img_array)
+        else:
+            return Image.fromarray(img_array[:, :, 0:3])
 
     @staticmethod
     def encode_multi_class(mask_label, gender_label, age_label) -> int:
@@ -280,14 +301,17 @@ class MaskBaseDataset(Dataset):
         n_val = int(len(self) * self.val_ratio)
         n_train = len(self) - n_val
         train_set, val_set = random_split(self, [n_train, n_val])
+        self.indices["train"] = train_set.indices
         return train_set, val_set
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
+        self.age_drop = age_drop
         self.indices = defaultdict(list)
         super().__init__(data_dir, mean, std, val_ratio)
-
+        
+        
     @staticmethod
     def _split_profile(profiles, val_ratio):
         length = len(profiles)
@@ -319,9 +343,13 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                     mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
-                    if id in self.ignores:
+                    
+                    if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
                         continue
                     
+                    if id in self.ignores:
+                        continue
+
                     if id in self.relabel_dict['incorrect_to_from_normal']:
                         mask_label = change_incorrect_normal(_file_name)
                     
@@ -348,8 +376,8 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 class OnlyAgeDataset(MaskSplitByProfileDataset):
     num_classes = 3
     class_name = ["young", "middle", "old"]
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
-        super().__init__(data_dir, mean, std, val_ratio)
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
+        super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
         
     def __getitem__(self, index):
         assert self.transform is not None
@@ -362,8 +390,11 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
 class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
     num_classes = 3
     class_name = ["young", "middle", "old"]
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
-        super().__init__(data_dir, mean, std, val_ratio)
+    thresholds = [Age.HIGH, Age.MID, Age.LOW]
+    age_values = []
+    
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
+        super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
         
     def setup(self):
         profiles = os.listdir(self.data_dir)
@@ -381,18 +412,25 @@ class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
                         continue
                     img_path = os.path.join(self.data_dir, profile, file_name)
                     _, _, _, age = profile.split("_")
-                    self.age_labels.append(float(age))
+                    if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
+                        continue
+                    self.age_values.append(float(age))
+                    self.age_labels.append(AgeLabels.from_number(age))
                     self.image_paths.append(img_path)
                     self.indices[phase].append(cnt)
                     cnt += 1
-                    
+    
+    def get_age_value(self, index):
+        return self.age_values[index]
+    
     def __getitem__(self, index):
         assert self.transform is not None
 
         image = self.read_image(index)
         age_label = self.get_age_label(index)
+        age_value = self.get_age_value(index)
         image_transform = self.transform(image)
-        return image_transform, age_label
+        return image_transform, (age_value, age_label)
     
 class OnlyMaskDataset(MaskSplitByProfileDataset):
     num_classes = 3
@@ -406,7 +444,7 @@ class OnlyMaskDataset(MaskSplitByProfileDataset):
         image = self.read_image(index)
         mask_label = self.get_mask_label(index)
         image_transform = self.transform(image)
-        return image_transform, mask_label, self.image_paths[index]
+        return image_transform, mask_label
     
 class OnlyGenderDataset(MaskSplitByProfileDataset):
     num_classes = 2
@@ -420,7 +458,7 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         image = self.read_image(index)
         gender_label = self.get_gender_label(index)
         image_transform = self.transform(image)
-        return image_transform, gender_label, self.image_paths[index]
+        return image_transform, gender_label
     
 class TestDataset(Dataset):
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
