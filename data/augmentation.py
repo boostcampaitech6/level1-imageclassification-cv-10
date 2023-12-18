@@ -2,6 +2,7 @@ from torchvision import transforms
 from torchvision.transforms import *
 from PIL import Image
 import torch
+import torchvision
 
 class BaseAugmentation:
     def __init__(self, resize, mean, std, **args):
@@ -46,15 +47,57 @@ class CustomAugmentation:
     def __call__(self, image):
         return self.transform(image)
 
-
-
-class TestAugmentation:
+class RandAugmentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
+        self.basetransform = transforms.Compose([
             Resize(resize, Image.BILINEAR),
             ToTensor(),
             Normalize(mean=mean, std=std),
         ])
+        self.randaug = torchvision.transforms.RandAugment(num_ops=3, magnitude=10, num_magnitude_bins=30, interpolation=transforms.InterpolationMode.BILINEAR)
 
     def __call__(self, image):
-        return self.transform(image)
+        image = self.randaug.forward(image)
+        return self.basetransform(image)
+
+class Augmix:
+    def __init__(self, resize, mean, std, **args):
+        self.basetransform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+        self.augmix = torchvision.transforms.AugMix(severity=3, mixture_width=3, chain_depth=-1, alpha=1.0, 
+                                                    all_ops=True, interpolation=transforms.InterpolationMode.BILINEAR)
+
+    def __call__(self, image):
+        image = self.augmix.forward(image)
+        return self.basetransform(image)
+
+class AutoAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.basetransform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+        self.autoaug = torchvision.transforms.AutoAugment(policy=torchvision.transforms.autoaugment.AutoAugmentPolicy.CIFAR10,
+                                                           interpolation=transforms.InterpolationMode.BILINEAR)
+
+    def __call__(self, image):
+        image = self.autoaug.forward(image)
+        return self.basetransform(image)
+
+class AugmentWide:
+    def __init__(self, resize, mean, std, **args):
+        self.basetransform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+        self.augwide = torchvision.transforms.TrivialAugmentWide(num_magnitude_bins=31,
+                                                           interpolation=transforms.InterpolationMode.BILINEAR)
+
+    def __call__(self, image):
+        image = self.augwide.forward(image)
+        return self.basetransform(image)

@@ -21,9 +21,11 @@ from torch.utils.data import WeightedRandomSampler
 
 import random
 import time
+from torchvision.transforms import v2
 
 
-def train(data_dir, save_dir, args):
+
+def train(train_data_dir, val_data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
     create_directory(save_path)
@@ -35,24 +37,31 @@ def train(data_dir, save_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    dataset_module = getattr(import_module("data.datasets_age"), args.dataset)
+    dataset_module = getattr(import_module("data.datasets"), args.dataset)
 
-
-    dataset = dataset_module(data_dir=data_dir)
+    #train/val 폴더가 나뉘었으므로 데이터셋도 train_set, val_set 두 개로 나누어 생성합니다
+    train_dataset = dataset_module(data_dir=train_data_dir)
+    val_dataset = dataset_module(data_dir=val_data_dir)
     
-    num_classes = dataset.num_classes
+    num_classes = train_dataset.num_classes
 
-    transform_module = getattr(import_module("data.augmentation"), args.augmentation)
-    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
-    dataset.set_transform(transform)
+    train_transform_module = getattr(import_module("data.augmentation"), args.augmentation)
+    val_transform_module = getattr(import_module("data.augmentation"), "BaseAugmentation")
+    train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
+    val_transform = val_transform_module(resize=args.resize, mean=val_dataset.mean, std=val_dataset.std)
+    train_dataset.set_transform(train_transform)
+    val_dataset.set_transform(val_transform)
     
-    train_set, val_set = dataset.split_dataset()
+    train_set, val_set = train_dataset, val_dataset
+
+    collate = None
 
     if args.sampler is None:
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -65,7 +74,8 @@ def train(data_dir, save_dir, args):
             train_set,
             sampler=ImbalancedDatasetSampler(train_set, labels = labels),
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -98,7 +108,8 @@ def train(data_dir, save_dir, args):
             train_set,
             sampler=weightedsampler,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
@@ -260,7 +271,7 @@ def train(data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, dataset.class_name)
+        parsed_metric = parse_metric(metrics, val_dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
@@ -291,5 +302,5 @@ if __name__ == '__main__':
     p.print_args(args)
     
     os.makedirs(args.save_dir, exist_ok=True)
-    train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
+    train(train_data_dir=args.train_data_dir, val_data_dir=args.val_data_dir, save_dir=args.save_dir, args=args)
     print("--- %s seconds ---" % (time.time() - start_time))
