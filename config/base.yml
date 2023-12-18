@@ -1,6 +1,8 @@
+
 # ==== Directory ====
 config: ./config/base.yml  # 실험에 사용할 yaml 파일 경로
-data_dir: ./input/train/images # training dataset 경로
+train_data_dir: ./input/dataset/train/ # training dataset 경로
+val_data_dir: ./input/dataset/val/ # validation dataset 경로
 test_data_dir: ./input/eval # inference dataset 경로
 save_dir: ./results # training result 경로
 output_dir: ./output # inference result 경로
@@ -9,26 +11,27 @@ exp_name: exp # training expriment name
 # test_exp_num: 8 # inference할 때 사용할 expriment number
 
 # ==== Dataset & Transform ==== 
-dataset: MaskSplitByProfileDataset 
-augmentation: BaseAugmentation 
+dataset: MaskBaseDataset
+augmentation: AutoAugmentation
 resize: [ 
   256,
   192
 ]
 valid_ratio: 0.2
 balanced_split: true
-sampler: 
+sampler: ImbalancedSampler
 
 # ==== Training ==== 
 seed: 42
 max_epochs: 30
-batch_size: 8
+batch_size: 32
 valid_batch_size: 64
 optimizer: Adam
 lr: 1e-4
 criterion: focal
+scheduler: cosine
 lr_decay_step: 20
 log_interval: 50
 
 # ==== Model ==== 
-model: EfficientnetB4
+model: ShufflenetV2

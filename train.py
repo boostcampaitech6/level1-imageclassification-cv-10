@@ -10,73 +10,81 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import torch
 
+from torchsampler import ImbalancedDatasetSampler
+from torch.utils.data import WeightedRandomSampler
+from torchvision.transforms import v2
+
 from utils.plot import save_confusion_matrix
 from utils.util import *
 from utils.loss import create_criterion
+from utils.lr_scheduler import create_scheduler
 from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
-from torchsampler import ImbalancedDatasetSampler
-from torch.utils.data import WeightedRandomSampler
+
+from data.augmentation import BaseAugmentation
 
 import random
 import time
+from torchvision.transforms import v2
 
 from ultralytics import YOLO
 from rembg import remove as rembg_model
 
 
-def train(data_dir, save_dir, args):
+def train(train_data_dir, val_data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
     create_directory(save_path)
     weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
     args.save_path = save_path
+
     wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
-    
+
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
-
-
-    dataset = dataset_module(data_dir=data_dir)
     
-    num_classes = dataset.num_classes
+    if args.age_drop:
+        train_dataset = dataset_module(data_dir=train_data_dir, age_drop=args.age_drop)
+    else:
+        train_dataset = dataset_module(data_dir=train_data_dir)
 
-    transform_module = getattr(import_module("data.augmentation"), args.augmentation)
-    transform = transform_module(resize=args.resize, mean=dataset.mean, std=dataset.std)
-    dataset.set_transform(transform)
-    
-    train_set, val_set = dataset.split_dataset()
+    val_dataset = dataset_module(data_dir=val_data_dir)
+    num_classes = train_set.num_classes
+    train_transform_module = getattr(import_module("data.augmentation"), args.augmentation)
+    train_transform = train_transform_module(resize=args.resize, mean=train_dataset.mean, std=train_dataset.std)
+    train_dataset.set_transform(train_transform)
+    val_set.set_transform(BaseAugmentation(resize=args.resize, mean=train_set.mean, std=train_set.std))
+
+    train_set, val_set = train_dataset, val_dataset
+
+    collate = None
 
     if args.sampler is None:
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             shuffle=True,
             pin_memory=use_cuda,
             drop_last=True,
         )
-
-    #torchsampler에서 제공하는 ImbalancedDatasetSampler를 사용합니다
     elif args.sampler == "ImbalancedSampler":
         labels = [train_set[i][1] for i in range(len(train_set))]
         train_loader = DataLoader(
             train_set,
             sampler=ImbalancedDatasetSampler(train_set, labels = labels),
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
-            # shuffle=True,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             pin_memory=use_cuda,
             drop_last=True,
         )
-
-    #torch.utils에서 제공하는 WeightedSampler를 사용합니다
     elif args.sampler == "WeightedSampler":
-        #train set의 라벨 분포를 이용해 0부터 17까지 18개의 라벨에 대해 계산한 가중치 값들
         BASE_WEIGHT = [6.885245901639344,
                        9.21951219512195,
                        45.54216867469879,
@@ -101,8 +109,8 @@ def train(data_dir, save_dir, args):
             train_set,
             sampler=weightedsampler,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 ,
-            # shuffle=True,
+            num_workers=multiprocessing.cpu_count() // 2,
+            collate_fn=collate,
             pin_memory=use_cuda,
             drop_last=True,
         )
@@ -124,14 +132,21 @@ def train(data_dir, save_dir, args):
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
-    if "Adam" in args.optimizer:
+    if args.optimizer == 'Adam':
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-    elif "RMSprop" == args.optimizer:
+    elif args.optimizer == "RMSprop":
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4,alpha=0.9, momentum=0.9, eps=1e-08, centered=False)
-    else:
+    elif args.optimizer == 'AdamW':
         optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
-        
-    scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
+    elif args.optimizer == "sgd":
+        optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), momentum=0.9, weight_decay=5e-4)
+
+    if args.scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.max_epochs)
+    elif args.scheduler == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2)
+    elif args.scheduler == "exponential":
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
@@ -141,7 +156,6 @@ def train(data_dir, save_dir, args):
     
     best_val_loss = np.inf
     best_f1_score = 0.
-    best_val_f1_score = 0
     
     for epoch in range(args.max_epochs):
         model.train()
@@ -202,7 +216,11 @@ def train(data_dir, save_dir, args):
             best_val_loss = min(best_val_loss, val_loss)
             metrics = calculate_metrics(targets, results, num_classes)
             
-            if metrics["Total F1 Score"] > best_f1_score:
+            results.clear()
+            targets.clear()
+            val_loss_items.clear()
+            
+            if metrics["Total F1 Score"] > best_f1_score or (metrics["Total F1 Score"] == best_f1_score and best_val_loss < val_loss):
                 torch.save(model.module.state_dict(), os.path.join(weight_path, 'best.pt'))
                 best_f1_score = metrics["Total F1 Score"]
             
@@ -215,7 +233,6 @@ def train(data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            # 모델이 잘못 예측한 이미지의 인덱스들 중 10개를 랜덤하게 뽑아서 wandb를 이용해 로깅합니다.
             false_pred_images = []
             random_sample = list(random.sample(metrics["False Image Indexes"], 10))
             for index in random_sample:
@@ -262,7 +279,7 @@ def train(data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, dataset.class_name)
+        parsed_metric = parse_metric(metrics, val_dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
@@ -293,5 +310,5 @@ if __name__ == '__main__':
     p.print_args(args)
     
     os.makedirs(args.save_dir, exist_ok=True)
-    train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)
+    train(train_data_dir=args.train_data_dir, val_data_dir=args.val_data_dir, save_dir=args.save_dir, args=args)
     print("--- %s seconds ---" % (time.time() - start_time))
