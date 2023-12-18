@@ -10,7 +10,12 @@ class Parser(object):
     def create_parser(self):
         # Directory
         self.parser.add_argument(
-            '--data-dir',
+            '--train-data-dir',
+            default="/input",
+            help="The dataset folder path"
+        )
+        self.parser.add_argument(
+            '--val-data-dir',
             default="/input",
             help="The dataset folder path"
         )
@@ -141,6 +146,12 @@ class Parser(object):
             '--hpo',
             default=True,
             help="Try HPO"
+        )
+
+        self.parser.add_argument(
+            '--cutmix',
+            default=False,
+            help="Cutmix or Mixup in train dataset"
         )
     
     def print_args(self, args):
