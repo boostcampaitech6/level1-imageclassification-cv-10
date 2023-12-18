@@ -97,16 +97,15 @@ class MaskBaseDataset(Dataset):
         "normal": MaskLabels.NORMAL
     }
 
-    image_paths = []
-    mask_labels = []
-    gender_labels = []
-    age_labels = []
-
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         self.data_dir = data_dir
         self.mean = mean
         self.std = std
         self.val_ratio = val_ratio
+        self.image_paths = []
+        self.mask_labels = []
+        self.gender_labels = []
+        self.age_labels = []
 
         self.transform = None
         self.setup()
