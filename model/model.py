@@ -181,6 +181,30 @@ class EfficientNetV2m(nn.Module):
         )
         
     def forward(self, x):
+        x = self.backbone(x)
+        return x
+    
+class Vit(nn.Module):
+
+    def __init__(self, num_classes):
+        super(Vit, self).__init__()
+        self.model = timm.create_model('vit_base_patch16_224', pretrained=True)
+        self.num_ftrs = self.model.head.in_features
+        self.model.head = nn.Linear(self.num_ftrs, num_classes)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+    
+class Swin(nn.Module):
+
+    def __init__(self, num_classes):
+        super(Swin, self).__init__()
+        self.model = timm.create_model('swin_base_patch4_window7_224', pretrained=True)
+        self.num_ftrs = self.model.head.in_features
+        self.model.head = nn.Linear(self.num_ftrs, num_classes)
+
+    def forward(self, x):
         return self.model(x)
 
 class MultiHeadEfficientnetB4(EfficientnetB4):
@@ -234,26 +258,3 @@ class MultiHeadEfficientnetB4(EfficientnetB4):
                 
         return age, mask, gender
     
-class Vit(nn.Module):
-
-    def __init__(self, num_classes):
-        super(Vit, self).__init__()
-        self.model = timm.create_model('vit_base_patch16_224', pretrained=True)
-        self.num_ftrs = self.model.head.in_features
-        self.model.head = nn.Linear(self.num_ftrs, num_classes)
-
-    def forward(self, x):
-        x = self.model(x)
-        return x
-    
-class Swin(nn.Module):
-
-    def __init__(self, num_classes):
-        super(Swin, self).__init__()
-        self.model = timm.create_model('swin_base_patch4_window7_224', pretrained=True)
-        self.num_ftrs = self.model.head.in_features
-        self.model.head = nn.Linear(self.num_ftrs, num_classes)
-
-    def forward(self, x):
-        x = self.model(x)
-        return x

@@ -1,18 +1,17 @@
 import os
 import random
+
 from collections import defaultdict
 from enum import Enum
 from typing import Tuple, List
 import math
 
-import numpy as np
-import cv2
-from PIL import Image
-
-import torch
+from enum import Enum
+from typing import Tuple, List
+from collections import defaultdict
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
-from torchvision.transforms import *
+import torch
 
 from importlib import import_module
 
@@ -23,22 +22,24 @@ IMG_EXTENSIONS = [
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
 ]
 
-
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-from torchvision import transforms
-from torchvision.transforms import *
-from PIL import Image
-import cv2
-
 class MaskLabels(int, Enum):
+    """
+    마스크 착용 상태를 나타내는 레이블입니다.
+    MASK: 마스크 착용, INCORRECT: 잘못된 마스크 착용, NORMAL: 마스크 미착용
+    """
     MASK = 0
     INCORRECT = 1
     NORMAL = 2
 
-
 class GenderLabels(int, Enum):
+    """
+    성별을 나타내는 레이블입니다.
+    MALE: 남성, FEMALE: 여성
+    from_str: 문자열을 받아 해당하는 레이블로 변환합니다.
+    """
     MALE = 0
     FEMALE = 1
 
@@ -54,6 +55,11 @@ class GenderLabels(int, Enum):
 
 
 class AgeLabels(int, Enum):
+    """
+    연령대를 나타내는 레이블입니다.
+    YOUNG: 젊은, MIDDLE: 중년, OLD: 노년
+    from_number: 숫자를 받아 해당하는 연령대 레이블로 변환합니다.
+    """
     YOUNG = 0
     MIDDLE = 1
     OLD = 2
@@ -96,6 +102,10 @@ def change_gender(gender):
         return 'male'
     
 class MaskBaseDataset(Dataset):
+    """
+    마스크 착용 상태, 성별, 연령대에 따른 이미지 데이터셋 클래스입니다.
+    이미지 경로, 마스크 레이블, 성별 레이블, 연령대 레이블을 로드하고, 데이터 전처리를 설정합니다.
+    """
     num_classes = 3 * 2 * 3
     class_name = [
         "mask_male_young", "mask_male_middle", "mask_male_old",
@@ -270,6 +280,10 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
+    """
+    프로필(사람)별로 데이터셋을 분리하는 클래스입니다.
+    각 프로필의 이미지를 훈련 및 검증 세트로 분리합니다.
+    """
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
         self.indices = defaultdict(list)
         self.age_drop = age_drop
@@ -337,6 +351,10 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
 class MultiLabelMaskSplitByProfileDataset(MaskSplitByProfileDataset):
+    """
+    여러 레이블(마스크 착용 상태, 성별, 연령대)을 가진 데이터셋을 제공하는 클래스입니다.
+    각 이미지에 대한 여러 레이블을 반환합니다.
+    """
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         super().__init__(data_dir, mean, std, val_ratio)
     
@@ -353,6 +371,9 @@ class MultiLabelMaskSplitByProfileDataset(MaskSplitByProfileDataset):
         return image_transform, age_label, mask_label, gender_label, multi_class_label
 		
 class OnlyAgeDataset(MaskSplitByProfileDataset):
+    """
+    연령대 레이블만을 포함하는 데이터셋 클래스입니다.
+    """
     num_classes = 3
     class_name = ["young", "middle", "old"]
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
@@ -411,6 +432,9 @@ class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
         return image_transform, (age_value, age_label)
     
 class OnlyMaskDataset(MaskSplitByProfileDataset):
+    """
+    마스크 착용 상태 레이블만을 포함하는 데이터셋 클래스입니다.
+    """
     num_classes = 3
     class_name = ["mask", "incorrect", "normal"]
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
@@ -425,6 +449,9 @@ class OnlyMaskDataset(MaskSplitByProfileDataset):
         return image_transform, mask_label
     
 class OnlyGenderDataset(MaskSplitByProfileDataset):
+    """
+    성별 레이블만을 포함하는 데이터셋 클래스입니다.
+    """
     num_classes = 2
     class_name = ["male", "female"]
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
@@ -439,6 +466,10 @@ class OnlyGenderDataset(MaskSplitByProfileDataset):
         return image_transform, gender_label
 
 class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
+    """
+    균형 잡힌 방식으로 프로필별 데이터셋을 분리하는 클래스입니다.
+    성별과 연령대에 따라 데이터셋을 균등하게 분리합니다.
+    """
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
         super().__init__(data_dir, mean, std, val_ratio)
     
@@ -464,13 +495,17 @@ class MaskSplitByProfileBalancedDataset(MaskSplitByProfileDataset):
         }
     
 class TestDataset(Dataset):
+    """
+    테스트를 위한 이미지 데이터셋 클래스입니다.
+    주어진 이미지 경로로부터 이미지를 로드하고 전처리를 수행합니다.
+    """
     def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
         self.img_paths = img_paths
 
         self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
+            transforms.Resize(resize, Image.BILINEAR),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
         ])
 
     def __getitem__(self, index):        
