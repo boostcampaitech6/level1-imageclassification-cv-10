@@ -26,6 +26,12 @@ results/
 # exclude wandb
 wandb/
 
+image_log.txt
+*.sh
+
+# exclude test code
+tests/
+
 #
 .vscode/*
 .vscode/
