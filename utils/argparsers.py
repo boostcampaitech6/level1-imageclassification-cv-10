@@ -13,13 +13,6 @@ class Parser(object):
             default="/input",
             help="The dataset folder path"
         )
-        
-        self.parser.add_argument(
-            '--test-data-dir',
-            default="/input",
-            help="The test dataset folder path"
-        )
-        
         self.parser.add_argument(
             '--val-data-dir',
             default="/input",
@@ -42,14 +35,6 @@ class Parser(object):
         )
         self.parser.add_argument(
             '--project-name',
-<<<<<<< HEAD
-            default="exp",
-            help="The wandb project name"
-        )
-        self.parser.add_argument(
-            '--exp-name',
-=======
->>>>>>> main
             default="exp",
             help="The wandb project name"
         )
@@ -149,11 +134,6 @@ class Parser(object):
             '--lr-decay-step',
             default=100,
             help="The learning rate decay steps"
-        )
-        self.parser.add_argument(
-            '--scheduler',
-            default="cosine",
-            help="The scheduler for training"
         )
         self.parser.add_argument(
             '--criterion',

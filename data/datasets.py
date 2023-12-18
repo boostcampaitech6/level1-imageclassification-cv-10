@@ -365,50 +365,50 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
         image_transform = self.transform(image)
         return image_transform, age_label
 
-class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
-    num_classes = 3
-    class_name = ["young", "middle", "old"]
-    thresholds = [Age.HIGH, Age.MID, Age.LOW]
-    age_values = []
+# class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
+#     num_classes = 3
+#     class_name = ["young", "middle", "old"]
+#     thresholds = [Age.HIGH, Age.MID, Age.LOW]
+#     age_values = []
     
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
-        super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
+#     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
+#         super().__init__(data_dir, mean, std, val_ratio, age_drop=age_drop)
         
-    def setup(self):
-        profiles = os.listdir(self.data_dir)
-        profiles = [profile for profile in profiles if not profile.startswith(".")]
-        split_profiles = self._split_profile(profiles, self.val_ratio)
+#     def setup(self):
+#         profiles = os.listdir(self.data_dir)
+#         profiles = [profile for profile in profiles if not profile.startswith(".")]
+#         split_profiles = self._split_profile(profiles, self.val_ratio)
 
-        cnt = 0
-        for phase, indices in split_profiles.items():
-            for _idx in indices:
-                profile = profiles[_idx]
-                img_folder = os.path.join(self.data_dir, profile)
-                for file_name in os.listdir(img_folder):
-                    _file_name, _ = os.path.splitext(file_name)
-                    if _file_name not in self._file_names:
-                        continue
-                    img_path = os.path.join(self.data_dir, profile, file_name)
-                    _, _, _, age = profile.split("_")
-                    if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
-                        continue
-                    self.age_values.append(float(age))
-                    self.age_labels.append(AgeLabels.from_number(age))
-                    self.image_paths.append(img_path)
-                    self.indices[phase].append(cnt)
-                    cnt += 1
+#         cnt = 0
+#         for phase, indices in split_profiles.items():
+#             for _idx in indices:
+#                 profile = profiles[_idx]
+#                 img_folder = os.path.join(self.data_dir, profile)
+#                 for file_name in os.listdir(img_folder):
+#                     _file_name, _ = os.path.splitext(file_name)
+#                     if _file_name not in self._file_names:
+#                         continue
+#                     img_path = os.path.join(self.data_dir, profile, file_name)
+#                     _, _, _, age = profile.split("_")
+#                     if self.age_drop and (57 <= int(age) <= 59) or (28 <= int(age) <= 30): 
+#                         continue
+#                     self.age_values.append(float(age))
+#                     self.age_labels.append(AgeLabels.from_number(age))
+#                     self.image_paths.append(img_path)
+#                     self.indices[phase].append(cnt)
+#                     cnt += 1
     
-    def get_age_value(self, index):
-        return self.age_values[index]
+#     def get_age_value(self, index):
+#         return self.age_values[index]
     
-    def __getitem__(self, index):
-        assert self.transform is not None
+#     def __getitem__(self, index):
+#         assert self.transform is not None
 
-        image = self.read_image(index)
-        age_label = self.get_age_label(index)
-        age_value = self.get_age_value(index)
-        image_transform = self.transform(image)
-        return image_transform, (age_value, age_label)
+#         image = self.read_image(index)
+#         age_label = self.get_age_label(index)
+#         age_value = self.get_age_value(index)
+#         image_transform = self.transform(image)
+#         return image_transform, (age_value, age_label)
     
 class OnlyMaskDataset(MaskSplitByProfileDataset):
     num_classes = 3

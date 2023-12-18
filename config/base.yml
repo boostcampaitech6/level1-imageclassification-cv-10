@@ -26,7 +26,7 @@ seed: 42
 max_epochs: 30
 batch_size: 32
 valid_batch_size: 64
-optimizer: Adam
+optimizer: AutoAugmentation
 lr: 1e-4
 criterion: focal
 scheduler: cosine
