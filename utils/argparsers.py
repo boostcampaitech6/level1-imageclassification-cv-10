@@ -78,7 +78,7 @@ class Parser(object):
         )
         
         self.parser.add_argument(
-            '--balanced_split',
+            '--balanced-split',
             default=True,
             help="The dataset split option"
         )
@@ -89,7 +89,7 @@ class Parser(object):
         )
         
         self.parser.add_argument(
-            '--age_drop',
+            '--age-drop',
             default=False,
             help="ignore 57~59 age data"
         )
@@ -101,12 +101,12 @@ class Parser(object):
             help="The initial random seed"
         )
         self.parser.add_argument(
-            '--max_epochs',
+            '--max-epochs',
             default=10,
             help="The max epochs"
         )
         self.parser.add_argument(
-            '--batch_size',
+            '--batch-size',
             default=128,
             help="The training batch size"
         )
