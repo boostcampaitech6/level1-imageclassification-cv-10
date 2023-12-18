@@ -270,8 +270,9 @@ class MaskBaseDataset(Dataset):
 
 
 class MaskSplitByProfileDataset(MaskBaseDataset):
-    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
         self.indices = defaultdict(list)
+        self.age_drop = age_drop
         super().__init__(data_dir, mean, std, val_ratio)
 
     @staticmethod
@@ -368,7 +369,6 @@ class OnlyAgeDataset(MaskSplitByProfileDataset):
 class OnlyAgeDatasetForRegression(MaskSplitByProfileDataset):
     num_classes = 3
     class_name = ["young", "middle", "old"]
-    thresholds = [Age.HIGH, Age.MID, Age.LOW]
     age_values = []
     
     def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2, age_drop=False):
