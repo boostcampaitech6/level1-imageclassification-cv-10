@@ -1,5 +1,6 @@
-import argparse
+# import argparse
 import os
+import yaml
 from importlib import import_module
 
 import pandas as pd
@@ -7,10 +8,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from data.datasets import TestDataset, MaskBaseDataset
-
+from utils.argparsers import Parser
 
 def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("models.model"), args.model)
+    model_cls = getattr(import_module("model.model"), args.model)
     model = model_cls(
         num_classes=num_classes
     )
@@ -62,22 +63,29 @@ def inference(data_dir, model_dir, output_dir, args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    p = Parser()
+    p.create_parser()
 
-    # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--resize', type=tuple, default=(256, 192), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='EfficientNetB4', help='model type (default: BaseModel)')
+    pargs = p.parser.parse_args()
+    try:
+        with open(pargs.config, 'r') as fp:
+            load_args = yaml.load(fp, Loader=yaml.FullLoader)
+        key = vars(pargs).keys()
+        for k in load_args.keys():
+            if k not in key:
+                print("Wrong argument: ", k)
+                assert(k in key)
+            p.parser.set_defaults(**load_args)
+    except FileNotFoundError:
+        print("Invalid filename. Check your file path or name.")
 
-    # Container environment
-    parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/data/ephemeral/home/train/eval'))
-    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_CHANNEL_MODEL', '/data/ephemeral/home/project/results/train12/weights/'))
-    parser.add_argument('--output_dir', type=str, default=os.environ.get('SM_OUTPUT_DATA_DIR', './'))
+    args = p.parser.parse_args()  
+    
+    p.print_args(args)
 
-    args = parser.parse_args()
-
-    data_dir = args.data_dir
-    model_dir = args.model_dir
+    data_dir = args.test_data_dir
+    exp_name = args.exp_name + str(args.test_exp_num if args.test_exp_num else "")
+    model_dir = args.save_dir + "/{}/weights".format(exp_name)
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
