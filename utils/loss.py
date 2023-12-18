@@ -22,7 +22,6 @@ class FocalLoss(nn.Module):
             reduction=self.reduction
         )
 
-
 class LabelSmoothingLoss(nn.Module):
     def __init__(self, classes=3, smoothing=0.0, dim=-1):
         super(LabelSmoothingLoss, self).__init__()
@@ -65,12 +64,20 @@ class F1Loss(nn.Module):
         f1 = f1.clamp(min=self.epsilon, max=1 - self.epsilon)
         return 1 - f1.mean()
 
-
+class MSELoss(nn.Module):
+    def __init__(self, reduction='mean'):
+        super().__init__()
+        self.func = nn.MSELoss(reduction=reduction)
+    
+    def forward(self, predictions, targets):
+        return self.func(predictions, targets)
+    
 _criterion_entrypoints = {
     'cross_entropy': nn.CrossEntropyLoss,
     'focal': FocalLoss,
     'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss
+    'f1': F1Loss,
+    'mse': MSELoss
 }
 
 def criterion_entrypoint(criterion_name):
