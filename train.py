@@ -26,6 +26,7 @@ from torchvision.transforms import v2
 from ultralytics import YOLO
 from rembg import remove as rembg_model
 
+
 def train(train_data_dir, val_data_dir, save_dir, args):
     seed_everything(args.seed)
     save_path = increment_path(os.path.join(save_dir, args.exp_name))
@@ -40,16 +41,9 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
     dataset_module = getattr(import_module("data.datasets"), args.dataset)
 
-    detect_model = False
-    if args.detection != 'False':
-        if args.detection == 'yolo':
-            detect_model = YOLO("data/preprocess/yolov8n-face.pt").to(device)
-        if args.detection == 'rembg':
-            detect_model = rembg_model
-
     #train/val 폴더가 나뉘었으므로 데이터셋도 train_set, val_set 두 개로 나누어 생성합니다
-    train_dataset = dataset_module(data_dir=train_data_dir, detection=args.detection, detect_model=detect_model)
-    val_dataset = dataset_module(data_dir=val_data_dir, detection=args.detection, detect_model=detect_model)
+    train_dataset = dataset_module(data_dir=train_data_dir)
+    val_dataset = dataset_module(data_dir=val_data_dir)
     
     num_classes = train_dataset.num_classes
 
@@ -68,7 +62,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         train_loader = DataLoader(
             train_set,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
+            num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
             shuffle=True,
             pin_memory=use_cuda,
@@ -82,7 +76,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             train_set,
             sampler=ImbalancedDatasetSampler(train_set, labels = labels),
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else multiprocessing.cpu_count() // 4,
+            num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
@@ -116,7 +110,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             train_set,
             sampler=weightedsampler,
             batch_size=args.batch_size,
-            num_workers=multiprocessing.cpu_count() // 2 if args.detection=='False' else 0,
+            num_workers=multiprocessing.cpu_count() // 2,
             collate_fn=collate,
             # shuffle=True,
             pin_memory=use_cuda,
@@ -126,7 +120,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     val_loader = DataLoader(
         val_set,
         batch_size=args.valid_batch_size,
-        num_workers=multiprocessing.cpu_count()//2 if args.detection=='False' else 0,
+        num_workers=multiprocessing.cpu_count()//2 ,
         shuffle=False,
         pin_memory=use_cuda,
         drop_last=True,
