@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 import shutil
 
 # train, validation split
-data_dir = "../input/train/rembg_images/" # 각자 이미지 경로 넣어주세요 
+data_dir = "../input/train/yolo_images/" # 각자 이미지 경로 넣어주세요 
 profiles = os.listdir(data_dir) 
 profiles = [profile for profile in profiles if not profile.startswith(".")]
 
@@ -30,8 +30,8 @@ new_label_list = np.array(new_label_list)
 x_train, x_val, y_train, y_val = train_test_split(id_list, new_label_list, test_size = val_ratio, random_state =777, stratify = new_label_list)
 
 # 폴더 복사 후 저장 
-train_dir = '../input/rembg_dataset/train/' # 맘대로 조정하시면 됩니다!
-val_dir = '../input/rembg_dataset/val/' # 맘대로 조정하시면 됩니다!
+train_dir = '../input/yolo_dataset/train/' # 맘대로 조정하시면 됩니다!
+val_dir = '../input/yolo_dataset/val/' # 맘대로 조정하시면 됩니다!
 
 for dir in [train_dir, val_dir]:
     if not os.path.exists(dir):

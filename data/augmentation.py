@@ -101,3 +101,15 @@ class AugmentWide:
     def __call__(self, image):
         image = self.augwide.forward(image)
         return self.basetransform(image)
+
+class SharpnessAugmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            RandomAdjustSharpness(sharpness_factor=8),
+            Resize(resize),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)

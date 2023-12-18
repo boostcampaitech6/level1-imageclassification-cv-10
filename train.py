@@ -205,7 +205,6 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                 loss_item = criterion(outs, labels).item()
                 val_loss_items.append(loss_item)
             
-            print(sum([results[i] == targets[i] for i in range(len(results))]))
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             best_val_loss = min(best_val_loss, val_loss)
