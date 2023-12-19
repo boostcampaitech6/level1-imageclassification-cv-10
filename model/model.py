@@ -126,7 +126,7 @@ class EfficientNetV2m(nn.Module):
         )
         
     def forward(self, x):
-        x = self.backbone(x)
+        x = self.model(x)
         return x
     
 class Vit(nn.Module):
@@ -265,7 +265,7 @@ class SoftVotingEnsemble(nn.Module):
         self.model2 = ShufflenetV2(num_classes)
         self.model3 = MobileNetV2(num_classes)
         self.model4 = Squeezenet(num_classes)
-        # self.model5 = EfficientnetV2s(num_classes)
+        self.model5 = EfficientnetV2s(num_classes)
         
     def forward(self, x):
         x1 = nn.functional.softmax(self.model1(x), dim=1)

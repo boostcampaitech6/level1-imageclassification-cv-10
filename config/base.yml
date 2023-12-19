@@ -12,7 +12,7 @@ exp_name: exp # training expriment name
 
 # ==== Dataset & Transform ==== 
 dataset: MaskSplitByProfileDataset
-augmentation: AutoAugmentation
+augmentation: BaseAugmentation
 resize: [ 
   256,
   192
@@ -23,7 +23,7 @@ sampler: ImbalancedSampler
 
 # ==== Training ==== 
 seed: 42
-max_epochs: 30
+max_epochs: 40
 batch_size: 32
 valid_batch_size: 64
 optimizer: AdamW
@@ -34,4 +34,4 @@ lr_decay_step: 20
 log_interval: 50
 
 # ==== Model ==== 
-model: ShufflenetV2
+model: EfficientNetV2m
