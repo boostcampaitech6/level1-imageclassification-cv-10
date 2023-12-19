@@ -12,7 +12,7 @@ class Parser(object):
         self.parser.add_argument('--test-data-dir', default="/input", help="Path to the test data directory.")
         self.parser.add_argument('--save-dir', default="./results", help="Directory for saving training outputs like models and logs.")
         self.parser.add_argument('--output-dir', default="./output", help="Directory to store additional output files.")
-        self.parser.add_argument('--project-name', default="exp", help="Name of the Weights & Biases project for tracking experiments.")
+        self.parser.add_argument('--project-name', default="boostcamp_level_1", help="Name of the Weights & Biases project for tracking experiments.")
         self.parser.add_argument('--exp-name', default="exp", help="Name of this specific experiment run.")
         self.parser.add_argument('--test-exp-num', default=None, help="Experiment number for the test run.")
         self.parser.add_argument('--config', default='./config/base.yml', help='Path to the configuration file in YAML format.')
