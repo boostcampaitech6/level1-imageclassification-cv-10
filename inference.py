@@ -24,6 +24,8 @@ def load_model(saved_model, num_classes, device):
 
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
+    """
+    """
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
