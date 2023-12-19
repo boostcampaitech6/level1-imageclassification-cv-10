@@ -35,7 +35,7 @@ from rembg import remove as rembg_model
 def setup_paths(save_dir, exp_name):
     save_path = increment_path(Path(save_dir) / exp_name)
     create_directory(save_path)
-    weight_path = save_path / 'weights'
+    weight_path = os.path.join(save_path, 'weights') #save_path / 'weights'
     create_directory(weight_path)
     return save_path, weight_path
 
@@ -65,7 +65,7 @@ def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_p
     else:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
     
-def create_scheduler(scheduler_name, optimizer, max_epochs):
+def create_scheduler(scheduler_name, optimizer, max_epochs, step_size, gamma):
     """
     지정된 이름과 매개변수를 사용하여 학습률 스케줄러를 생성한다.
 
@@ -80,9 +80,9 @@ def create_scheduler(scheduler_name, optimizer, max_epochs):
     if scheduler_name == "cosine":
         return lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
     elif scheduler_name == "step":
-        return lr_scheduler.StepLR(optimizer, step_size=2)
+        return lr_scheduler.StepLR(optimizer, step_size=step_size)
     elif scheduler_name == "exponential":
-        return lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
+        return lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     else:
         raise ValueError(f"Unknown scheduler: {scheduler_name}")
 
