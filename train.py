@@ -297,7 +297,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, val_set.class_name)
+        parsed_metric = parse_metric(metrics, val_dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
