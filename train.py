@@ -112,7 +112,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     # Initializing
     seed_everything(args.seed)
     save_path, weight_path = setup_paths(save_dir, args.exp_name)
-    # wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
+    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -225,20 +225,22 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             print("Calculate validation set.....")
             for val_batch in val_loader:
                 inputs, labels = val_batch
+                if args.criterion == "bce":
+                    labels = torch.nn.functional.one_hot(labels, num_classes=train_dataset.num_classes).float()
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-                if args.mix:
-                    new_labels = torch.zeros(num_classes)
-                    new_labels[labels] += 1
 
                 outs = model(inputs)
                 preds = torch.argmax(outs, dim=-1)
                 
                 results.extend(list(preds.cpu().numpy()))
-                targets.extend(list(labels.cpu().numpy()))
                 
                 loss_item = criterion(outs, labels).item()
                 val_loss_items.append(loss_item)
+                if args.criterion == "bce":
+                    labels = torch.argmax(labels, dim=-1)
+
+                targets.extend(list(labels.cpu().numpy()))
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
             best_val_loss = min(best_val_loss, val_loss)
@@ -261,10 +263,10 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            false_pred_images = []
-            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
-            for index in random_sample:
-                false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
+            # false_pred_images = []
+            # random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            # for index in random_sample:
+            #     false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
 
             wb_logger.log(
                 {
@@ -306,7 +308,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, val_set.class_name)
+        parsed_metric = parse_metric(metrics, val_dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
