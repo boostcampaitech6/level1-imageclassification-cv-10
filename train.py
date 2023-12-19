@@ -244,10 +244,10 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            false_pred_images = []
-            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
-            for index in random_sample:
-                false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
+            # false_pred_images = []
+            # random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            # for index in random_sample:
+            #     false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
 
             wb_logger.log(
                 {
