@@ -227,6 +227,9 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                 inputs, labels = val_batch
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                if args.mix:
+                    new_labels = torch.zeros(num_classes)
+                    new_labels[labels] += 1
 
                 outs = model(inputs)
                 preds = torch.argmax(outs, dim=-1)
