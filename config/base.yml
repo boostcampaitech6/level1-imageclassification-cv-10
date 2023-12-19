@@ -11,7 +11,7 @@ exp_name: exp # training expriment name
 # test_exp_num: 8 # inference할 때 사용할 expriment number
 
 # ==== Dataset & Transform ==== 
-dataset: MaskBaseDataset
+dataset: MaskSplitByProfileDataset
 augmentation: AutoAugmentation
 resize: [ 
   256,
