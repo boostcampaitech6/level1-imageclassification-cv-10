@@ -33,11 +33,18 @@ from ultralytics import YOLO
 from rembg import remove as rembg_model
 
 def setup_paths(save_dir, exp_name):
+<<<<<<< HEAD
     save_path = increment_path(os.path.join(save_dir, exp_name))
     os.makedirs(save_path, exist_ok=True)
 
     weight_path = os.path.join(save_path, 'weights')
     os.makedirs(weight_path, exist_ok=True)
+=======
+    save_path = increment_path(Path(save_dir) / exp_name)
+    create_directory(save_path)
+    weight_path = os.path.join(save_path, 'weights') #save_path / 'weights'
+    create_directory(weight_path)
+>>>>>>> f41dbde27b0025811d36c9379a30a7019f91738f
     return save_path, weight_path
 
 def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_params=None):
@@ -66,7 +73,11 @@ def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_p
     else:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
     
+<<<<<<< HEAD
 def create_scheduler(scheduler_name, optimizer, max_epochs, step_size=2, gamma=0.5):
+=======
+def create_scheduler(scheduler_name, optimizer, max_epochs, step_size, gamma):
+>>>>>>> f41dbde27b0025811d36c9379a30a7019f91738f
     """
     지정된 이름과 매개변수를 사용하여 학습률 스케줄러를 생성한다.
 

@@ -29,6 +29,7 @@ def create_data_loader(dataset, batch_size, use_cuda, sampler=None, collate=None
             drop_last=is_train
         )
     elif sampler == "ImbalancedSampler":
+        print("Imbalanced sampling in progress...")
         labels = [dataset[i][1] for i in range(len(dataset))]
         loader = DataLoader(
             dataset,
@@ -58,6 +59,7 @@ def create_data_loader(dataset, batch_size, use_cuda, sampler=None, collate=None
                        25.81967213114754,
                        23.133414932680537,
                        173.39449541284404]
+        print("Weighted sampling in progress...")
         weights = [BASE_WEIGHT[dataset[i][1]] for i in range(len(dataset))]
         weightedsampler = WeightedRandomSampler(weights=weights, num_samples=len(dataset), replacement=True)
         loader = DataLoader(
