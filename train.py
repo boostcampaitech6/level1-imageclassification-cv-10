@@ -35,7 +35,7 @@ from rembg import remove as rembg_model
 def setup_paths(save_dir, exp_name):
     save_path = increment_path(Path(save_dir) / exp_name)
     create_directory(save_path)
-    weight_path = save_path / 'weights'
+    weight_path = os.path.join(save_path, 'weights')
     create_directory(weight_path)
     return save_path, weight_path
 
@@ -112,7 +112,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     # Initializing
     seed_everything(args.seed)
     save_path, weight_path = setup_paths(save_dir, args.exp_name)
-    wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
+    # wb_logger = WeightAndBiasLogger(args, save_path.split("/")[-1], args.project_name)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -139,10 +139,10 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     val_dataset.set_transform(val_transform)
 
     collate = None
-    if args.cutmix:
-        if args.cutmix == "cutmix":
+    if args.mix:
+        if args.mix == "cutmix":
             collate_base = v2.CutMix(num_classes=train_dataset.num_classes)
-        elif args.cutmix == "mixup":
+        elif args.mix == "mixup":
             collate_base = v2.MixUp(num_classes=val_dataset.num_classes)
         else:
             raise ValueError("Please provide cutmix or mixup as argument")
@@ -161,7 +161,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     # Set criterion, optimizer and scheduler
     criterion = create_criterion(args.criterion)
     optimizer = create_optimizer(args.optimizer, model.parameters(), float(args.lr), 5e-4)
-    scheduler = create_scheduler(args.scheduler, optimizer, args.max_epochs, step_size=2, gamma=0.5)
+    scheduler = create_scheduler(args.scheduler, optimizer, args.max_epochs)
 
     # Save config file and log
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
@@ -184,7 +184,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
         for train_batch in train_process_bar:
             inputs, labels = train_batch
-            if args.cutmix:
+            if args.hardmix == True:
                 labels = torch.argmax(labels, dim=-1)
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -192,12 +192,19 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             optimizer.zero_grad()
 
             outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
+            if args.criterion == "bce":
+                preds = outs
+            else:
+                preds = torch.argmax(outs, dim=-1)
             loss = criterion(outs, labels)
 
             loss.backward()
             optimizer.step()
-            
+
+            if args.criterion == "bce":
+                preds = torch.argmax(preds, dim=-1)
+                labels = torch.argmax(labels, dim=-1)
+                
             train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
             train_process_bar.set_description(train_desc)

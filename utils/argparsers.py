@@ -33,7 +33,9 @@ class Parser(object):
         self.parser.add_argument('--log-interval', default=10, help="Interval at which to log training progress.")
         self.parser.add_argument('--model', default="EfficientnetB4", help="Model architecture to be used.")
         self.parser.add_argument('--hpo', default=True, help="Enable Hyperparameter Optimization (HPO).")
-        self.parser.add_argument('--cutmix', default=False, help="Use Cutmix or Mixup data augmentation techniques during training.")
+        self.parser.add_argument('--mix', default=False, help="Use Cutmix or Mixup data augmentation techniques during training.")
+        self.parser.add_argument('--hardmix', default=False, help="Use hard label or soft label for cutmix/mixup")
+        self.parser.add_argument('--age-drop', default=False, help="Drop age when training")
 
     def print_args(self, args):
         print("Arguments:")

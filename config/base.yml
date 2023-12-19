@@ -19,14 +19,16 @@ resize: [
 ]
 valid_ratio: 0.2
 balanced_split: true
-sampler: ImbalancedSampler
+sampler: 
+mix:
+hardmix: false
 
 # ==== Training ==== 
 seed: 42
 max_epochs: 30
 batch_size: 32
 valid_batch_size: 64
-optimizer: AutoAugmentation
+optimizer: AdamW
 lr: 1e-4
 criterion: focal
 scheduler: cosine

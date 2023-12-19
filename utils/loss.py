@@ -153,7 +153,8 @@ _criterion_entrypoints = {
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
-    "mse": MSELoss
+    "mse": MSELoss,
+    "bce": nn.BCEWithLogitsLoss
 }
 
 def criterion_entrypoint(criterion_name):
