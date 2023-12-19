@@ -9,10 +9,6 @@ from tqdm import tqdm
 
 from data.dataloader import create_data_loader
 
-from torchsampler import ImbalancedDatasetSampler
-from torch.utils.data import WeightedRandomSampler
-from torchvision.transforms import v2
-
 from utils.plot import save_confusion_matrix
 from utils.util import *
 from utils.loss import create_criterion
@@ -21,23 +17,19 @@ from utils.metric import calculate_metrics, parse_metric
 from utils.logger import Logger, WeightAndBiasLogger
 from utils.argparsers import Parser
 
-from data.augmentation import BaseAugmentation
-
 import random
 import time
 from torchvision.transforms import v2
 from torch.utils.data import default_collate
 
-from torchvision.transforms import v2
 from ultralytics import YOLO
 from rembg import remove as rembg_model
 
 def setup_paths(save_dir, exp_name):
-    save_path = increment_path(os.path.join(save_dir, exp_name))
-    os.makedirs(save_path, exist_ok=True)
-
-    weight_path = os.path.join(save_path, 'weights')
-    os.makedirs(weight_path, exist_ok=True)
+    save_path = increment_path(Path(save_dir) / exp_name)
+    create_directory(save_path)
+    weight_path = os.path.join(save_path, 'weights') #save_path / 'weights'
+    create_directory(weight_path)
     return save_path, weight_path
 
 def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_params=None):
@@ -54,7 +46,7 @@ def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_p
     Returns:
         torch.optim.Optimizer: 생성된 옵티마이저.
     """
-    params = [p for p in model_parameters if p.requires_grad]
+    params = filter(lambda p: p.requires_grad, model_parameters)
     if optimizer_name == 'Adam':
         return torch.optim.Adam(params, lr=lr, weight_decay=weight_decay, amsgrad=True)
     elif optimizer_name == "RMSprop":
@@ -66,7 +58,7 @@ def create_optimizer(optimizer_name, model_parameters, lr, weight_decay, extra_p
     else:
         raise ValueError(f"Unknown optimizer: {optimizer_name}")
     
-def create_scheduler(scheduler_name, optimizer, max_epochs, step_size=2, gamma=0.5):
+def create_scheduler(scheduler_name, optimizer, max_epochs, step_size, gamma):
     """
     지정된 이름과 매개변수를 사용하여 학습률 스케줄러를 생성한다.
 
@@ -297,7 +289,7 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         results.clear()
         targets.clear()
         
-        parsed_metric = parse_metric(metrics, val_set.class_name)
+        parsed_metric = parse_metric(metrics, val_dataset.class_name)
         print(parsed_metric)
         
         txt_logger.update_string("Save Metric....")
