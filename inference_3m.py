@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from data.datasets import TestDataset, MaskBaseDataset
 
 def load_model(saved_model, num_classes, device):
-    model_cls = getattr(import_module("model.model"), args.model)
+    model_cls = getattr(import_module("models.model"), args.model)
     model = model_cls(
         num_classes=num_classes
     )
@@ -27,9 +27,9 @@ def inference(data_dir, model_dir, output_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    mask_model = load_model('/data/ephemeral/home/n_boostcamp/level1-imageclassification-cv-10/results/rembg_exp/weights', 3, device).to(device)
-    gender_model = load_model('/data/ephemeral/home/n_boostcamp/level1-imageclassification-cv-10/results/base_exp/weights', 2, device).to(device)
-    age_model = load_model('/data/ephemeral/home/n_boostcamp/level1-imageclassification-cv-10/results/yolo_exp/weights', 3, device).to(device)
+    mask_model = load_model('/data/ephemeral/home/project/results/final_mask_1/weights', 3, device).to(device)
+    gender_model = load_model('/data/ephemeral/home/project/results/final_gender/weights', 2, device).to(device)
+    age_model = load_model('/data/ephemeral/home/project/results/final_age5/weights', 3, device).to(device)
     mask_model.eval()
     gender_model.eval()
     age_model.eval()
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for validing (default: 1000)')
     parser.add_argument('--resize', type=tuple, default=(384, 288), help='resize size for image when you trained (default: (96, 128))')
-    parser.add_argument('--model', type=str, default='EfficientnetB4', help='model type (default: BaseModel)')
+    parser.add_argument('--model', type=str, default='EfficientNetB4', help='model type (default: BaseModel)')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_EVAL', '/data/ephemeral/home/train/eval'))

@@ -58,14 +58,14 @@ def train(data_dir, save_dir, args):
         drop_last=True,
     )
 
-    model_module = getattr(import_module("model.model"), args.model)
+    model_module = getattr(import_module("models.model"), args.model)
     model = model_module(num_classes=1).to(device)
     model = torch.nn.DataParallel(model)
 
     criterion = create_criterion(args.criterion)
     opt_module = getattr(import_module("torch.optim"), args.optimizer)
 
-    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=float(args.lr), weight_decay=5e-4, amsgrad=True)
+    optimizer = opt_module(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=5e-4, amsgrad=True)
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     with open(os.path.join(save_path, 'config.json'), 'w', encoding='utf-8') as f:
@@ -227,4 +227,4 @@ if __name__ == '__main__':
         
     args = p.parser.parse_args()  
     
-    train(data_dir='./input/train/images', save_dir=args.save_dir, args=args)
+    train(data_dir=args.data_dir, save_dir=args.save_dir, args=args)

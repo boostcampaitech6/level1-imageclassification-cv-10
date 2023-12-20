@@ -12,7 +12,7 @@ profiles = [profile for profile in profiles if not profile.startswith(".")]
 
 id_list = []
 new_label_list = []
-val_ratio = 0.2
+val_ratio = 0.6
 for index, profile in enumerate(profiles):
     id, gender, race, age = profile.split("_")
     if gender == 'male':
@@ -30,8 +30,8 @@ new_label_list = np.array(new_label_list)
 x_train, x_val, y_train, y_val = train_test_split(id_list, new_label_list, test_size = val_ratio, random_state =777, stratify = new_label_list)
 
 # 폴더 복사 후 저장 
-train_dir = '../input/yolo_dataset/train/' # 맘대로 조정하시면 됩니다!
-val_dir = '../input/yolo_dataset/val/' # 맘대로 조정하시면 됩니다!
+train_dir = '../input/yolo_dataset_4/train/' # 맘대로 조정하시면 됩니다!
+val_dir = '../input/yolo_dataset_4/val/' # 맘대로 조정하시면 됩니다!
 
 for dir in [train_dir, val_dir]:
     if not os.path.exists(dir):

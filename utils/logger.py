@@ -28,7 +28,7 @@ class WeightAndBiasLogger():
         if isinstance(config, dict) or hasattr(config, '__dict__'):
             run = wandb.init(
                 project=project_name,
-                dir=config.save_path,
+                dir=config.save_dir,
             )
             assert run is wandb.run
             run.name = exp_name
