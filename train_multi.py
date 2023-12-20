@@ -173,20 +173,32 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         train_acc = 0.
 
         for train_batch in train_process_bar:
-            inputs, labels = train_batch
+            inputs, age_labels, mask_labels, gender_labels, labels = train_batch
             if args.cutmix:
                 labels = torch.argmax(labels, dim=-1)
             inputs = inputs.to(device)
+            age_labels = age_labels.to(device)
+            mask_labels = mask_labels.to(device)
+            gender_labels = gender_labels.to(device)
             labels = labels.to(device)
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            age_output, mask_output, gender_output = model(inputs)
+            age_loss = criterion(age_output, age_labels)
+            mask_loss = criterion(mask_output, mask_labels)
+            gender_loss= criterion(gender_output, gender_labels)
+        
+            loss = age_loss + mask_loss + gender_loss
 
             loss.backward()
             optimizer.step()
+            
+            age_output = torch.argmax(age_output, dim=-1)
+            mask_output = torch.argmax(mask_output, dim=-1)
+            gender_output = torch.argmax(gender_output, dim=-1)
+            
+            preds = age_output + gender_output*3 + mask_output*6
             
             train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
@@ -207,18 +219,31 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                     
             print("Calculate validation set.....")
             for val_batch in val_loader:
-                inputs, labels = val_batch
+                inputs, age_labels, mask_labels, gender_labels, labels = val_batch
                 inputs = inputs.to(device)
+                age_labels = age_labels.to(device)
+                mask_labels = mask_labels.to(device)
+                gender_labels = gender_labels.to(device)
                 labels = labels.to(device)
-
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
                 
+                age_output, mask_output, gender_output = model(inputs)
+                
+                age_loss = criterion(age_output, age_labels)
+                mask_loss = criterion(mask_output, mask_labels)
+                gender_loss= criterion(gender_output, gender_labels)
+                
+                loss = age_loss + mask_loss + gender_loss
+                
+                val_loss_items.append(loss.item())
+                
+                age_output = torch.argmax(age_output, dim=-1)
+                mask_output = torch.argmax(mask_output, dim=-1)
+                gender_output = torch.argmax(gender_output, dim=-1)
+                
+                preds = age_output + gender_output*3 + mask_output*6
+
                 results.extend(list(preds.cpu().numpy()))
                 targets.extend(list(labels.cpu().numpy()))
-                
-                loss_item = criterion(outs, labels).item()
-                val_loss_items.append(loss_item)
             
             val_loss = np.sum(val_loss_items) / len(val_loader)
             best_val_loss = min(best_val_loss, val_loss)
@@ -270,12 +295,20 @@ def train(train_data_dir, val_data_dir, save_dir, args):
         results = []
         targets = []
         for val_batch in val_loader:
-            inputs, labels = val_batch
+            inputs, age_labels, mask_labels, gender_labels, labels = val_batch
             inputs = inputs.to(device)
+            age_labels = age_labels.to(device)
+            mask_labels = mask_labels.to(device)
+            gender_labels = gender_labels.to(device)
             labels = labels.to(device)
-
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
+        
+            age_output, mask_output, gender_output = model(inputs)
+            
+            age_output = torch.argmax(age_output, dim=-1)
+            mask_output = torch.argmax(mask_output, dim=-1)
+            gender_output = torch.argmax(gender_output, dim=-1)
+            
+            preds = age_output + gender_output*3 + mask_output*6
             targets.extend(list(labels.cpu().numpy()))
             results.extend(list(preds.cpu().numpy()))
         

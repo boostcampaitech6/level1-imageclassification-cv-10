@@ -107,12 +107,13 @@ class CustomAugmentation:
     """
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
-            transforms.CenterCrop((320, 256)),
+            transforms.CenterCrop((384, 288)),
             transforms.Resize(resize, Image.BILINEAR),
-            transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
+            transforms.RandomHorizontalFlip(0.5),
+            # transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
             transforms.ToTensor(),
             transforms.Normalize(mean=mean, std=std),
-            AddGaussianNoise()
+            # AddGaussianNoise()
         ])
 
     def __call__(self, image):

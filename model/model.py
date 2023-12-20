@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights, efficientnet_v2_s, EfficientNet_V2_S_Weights
+from torchvision.models import efficientnet_v2_m, EfficientNet_V2_M_Weights, efficientnet_v2_s, EfficientNet_V2_S_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 
 import timm
 
@@ -121,14 +121,61 @@ class EfficientNetV2m(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.model = efficientnet_v2_m(weights=EfficientNet_V2_M_Weights.IMAGENET1K_V1)
+        self.model.classifier = nn.Linear(1280, num_classes)
+        
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class EfficientNetV2mMulti(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = efficientnet_v2_m(weights=EfficientNet_V2_M_Weights.IMAGENET1K_V1)
+        # EfficientNet의 마지막 레이어 제거
+        self.base_model = nn.Sequential(*list(self.model.children())[:-1])
+
+        # 평균 풀링 추가
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+
+        # 연령, 마스크, 성별 분류를 위한 별도의 Fully Connected 레이어 추가
+        self.fc_age = nn.Linear(1280, 3)
+        self.fc_mask = nn.Linear(1280, 3)
+        self.fc_gender = nn.Linear(1280, 2)
+
+    def forward(self, x):
+        # 기본 모델을 통한 특징 추출
+        x = self.base_model(x)
+
+        # 평균 풀링 및 플래튼
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+
+        # 연령, 마스크, 성별에 대한 예측 수행
+        age_logits = self.fc_age(x)
+        mask_logits = self.fc_mask(x)
+        gender_logits = self.fc_gender(x)
+
+        return age_logits, mask_logits, gender_logits
+
+class EfficientNetV2l(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = efficientnet_v2_l(weights=EfficientNet_V2_L_Weights.IMAGENET1K_V1)
         self.model.classifier = nn.Sequential(
-            nn.Linear(1280, num_classes)
+            nn.Linear(1280, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Linear(256, num_classes)
         )
         
     def forward(self, x):
-        x = self.backbone(x)
+        x = self.model(x)
         return x
     
+
 class Vit(nn.Module):
 
     def __init__(self, num_classes):
