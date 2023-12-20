@@ -12,7 +12,7 @@ exp_name: exp # training expriment name
 
 # ==== Dataset & Transform ==== 
 dataset: MaskSplitByProfileDataset
-augmentation: BaseAugmentation
+augmentation: AutoAugmentation
 resize: [ 
   256,
   192
