@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 #submit csv path를 지정!!
-submit_csv = './ensemble/EffV2Pure.csv' #ex) '../data/submit.csv'
+submit_csv = './ensemble/SoftEnEff.csv' #ex) '../data/submit.csv'
 
 #Ensemble할 model이 모여있는 경로를 지정 (ex - 3개의 모델이 한 폴더에 위치)
 path = './ensemble/' #ex) './Ensemble/'

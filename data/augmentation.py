@@ -232,3 +232,16 @@ class AugmentWide:
     def __call__(self, image):
         image = self.augwide.forward(image)
         return self.basetransform(image)
+
+class AgeAug:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            transforms.Resize(resize, Image.BILINEAR),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)

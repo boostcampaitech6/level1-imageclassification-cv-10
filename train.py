@@ -175,6 +175,8 @@ def train(train_data_dir, val_data_dir, save_dir, args):
     best_val_loss = np.inf
     best_f1_score = 0.
 
+    scaler = torch.cuda.amp.GradScaler()
+
     for epoch in range(args.max_epochs):
         model.train()
 
@@ -192,12 +194,14 @@ def train(train_data_dir, val_data_dir, save_dir, args):
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
+            with torch.cuda.amp.autocast():
+                outs = model(inputs)
+                preds = torch.argmax(outs, dim=-1)
+                loss = criterion(outs, labels)
 
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             
             train_desc = train_desc_format.format(epoch, args.max_epochs, loss.item(),\
                 (preds == labels).sum().item() / args.batch_size)
@@ -249,10 +253,10 @@ def train(train_data_dir, val_data_dir, save_dir, args):
             
             torch.save(model.module.state_dict(), os.path.join(weight_path, 'last.pt'))
 
-            false_pred_images = []
-            random_sample = list(random.sample(metrics["False Image Indexes"], 10))
-            for index in random_sample:
-                false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
+            # false_pred_images = []
+            # random_sample = list(random.sample(metrics["False Image Indexes"], 10))
+            # for index in random_sample:
+            #     false_pred_images.append(wb_logger.update_image_with_label(val_dataset[index][0], results[index].item(), targets[index].item()))
 
             wb_logger.log(
                 {
@@ -263,13 +267,13 @@ def train(train_data_dir, val_data_dir, save_dir, args):
                     "Val Recall":metrics["Total Recall"],
                     "Val Precision": metrics["Total Precision"],
                     "Val F1_Score": metrics["Total F1 Score"],
-                    "Image": false_pred_images
+                    #"Image": false_pred_images
                 }
             )
             results.clear()
             targets.clear()
             val_loss_items.clear()
-            false_pred_images.clear()
+            #false_pred_images.clear()
     
     best_weight = torch.load(os.path.join(weight_path, 'best.pt'))
     model.module.load_state_dict(best_weight)

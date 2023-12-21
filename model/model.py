@@ -267,6 +267,7 @@ class SoftVotingEnsemble(nn.Module):
         # self.model4 = Squeezenet(num_classes)
         self.model5 = EfficientnetV2s(num_classes)
         self.model6 = EfficientNetV2m(num_classes)
+        # self.model7 = Densenet169(num_classes)
         
     def forward(self, x):
         x1 = nn.functional.softmax(self.model1(x), dim=1)
@@ -275,6 +276,7 @@ class SoftVotingEnsemble(nn.Module):
         # x4 = nn.functional.softmax(self.model4(x), dim=1)
         x5 = nn.functional.softmax(self.model5(x), dim=1)
         x6 = nn.functional.softmax(self.model6(x), dim=1)
+        # x7 = nn.functional.softmax(self.model7(x), dim=1)
 
         # average_prob = (x1 + x2 + x3 + x4 + x5) / 5
         # average_prob = (x1 + x2 + x3 + x4) / 4
