@@ -7,7 +7,7 @@ import shutil
 import random
 
 # 일정한 데이터 생성을 확인
-random.seed(42222)     
+random.seed(422)     
 
 # 이미지 파일들 저장된 경로 설정
 data_directory = './input/dataset/train/'

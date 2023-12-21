@@ -11,27 +11,27 @@ exp_name: exp # training expriment name
 # test_exp_num: 8 # inference할 때 사용할 expriment number
 
 # ==== Dataset & Transform ==== 
-dataset: OnlyAgeDataset
+dataset: MaskSplitByProfileDataset
 augmentation: AgeAug
 resize: [ 
-  384,
-  288
+  512,
+  388
 ]
 valid_ratio: 0.2
 balanced_split: true
-sampler: 
+sampler: ImbalancedSampler
 
 # ==== Training ==== 
 seed: 42
-max_epochs: 50
+max_epochs: 20
 batch_size: 32
 valid_batch_size: 64
 optimizer: AdamW
 lr: 1e-4
 criterion: focal
-scheduler: cosine
+scheduler: step
 lr_decay_step: 20
 log_interval: 50
 
 # ==== Model ==== 
-model: SoftVotingEnsemble
+model: EfficientNetV2m

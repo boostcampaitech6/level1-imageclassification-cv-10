@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class FocalLoss(nn.Module):
     """
@@ -147,13 +148,70 @@ class MSELoss(nn.Module):
     
     def forward(self, predictions, targets):
         return self.func(predictions, targets)
+
+
+def focal(logits, labels, alpha, gamma):
+
+    BCLoss = F.binary_cross_entropy_with_logits(input = logits, target = labels,reduction = "none")
+
+    if gamma == 0.0:
+        modulator = 1.0
+    else:
+        modulator = torch.exp(-gamma * labels * logits - gamma * torch.log(1 + 
+            torch.exp(-1.0 * logits))).cuda()
+
+    loss = modulator * BCLoss
+
+    weighted_loss = alpha * loss
+    focal_loss = torch.sum(weighted_loss).cuda()
+
+    focal_loss /= torch.sum(labels).cuda()
+    return focal_loss
+
+class BalancedFocalLoss(nn.Module):
+    
+    # [1736, 1687, 266]
+    def __init__(self, weight=None, gamma=2.0, reduction="mean", beta=0.9, samples_per_class=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83, 
+                                                                                              732, 817, 109, 549, 410, 83, 732, 817, 109]):
+        nn.Module.__init__(self)
+        self.weight = weight
+        self.gamma = gamma
+        self.reduction = reduction
+        self.beta = beta
+        self.samples = samples_per_class
+
+    def forward(self, logits, labels):
+        
+        beta = self.beta
+        gamma = self.gamma
+        samples_per_cls = self.samples
+        ######
+        no_of_classes = 18
+        ######
+        effective_num = 1.0 - np.power(beta, samples_per_cls)
+        weights = (1.0 - beta) / np.array(effective_num)
+        weights = weights / np.sum(weights) * no_of_classes
+
+        labels_one_hot = F.one_hot(labels, no_of_classes).float().cuda()
+
+        weights = torch.tensor(weights).float().cuda()
+        weights = weights.unsqueeze(0)
+        weights = weights.repeat(labels_one_hot.shape[0],1) * labels_one_hot
+        weights = weights.sum(1)
+        weights = weights.unsqueeze(1)
+        weights = weights.repeat(1,no_of_classes).cuda()
+
+        cb_loss = focal(logits, labels_one_hot, weights, gamma)
+        
+        return cb_loss
     
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
-    "mse": MSELoss
+    "mse": MSELoss,
+    "bfocal": BalancedFocalLoss
 }
 
 def criterion_entrypoint(criterion_name):

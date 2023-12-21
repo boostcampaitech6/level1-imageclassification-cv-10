@@ -122,9 +122,10 @@ class EfficientNetV2m(nn.Module):
         super().__init__()
         self.model = efficientnet_v2_m(weights=EfficientNet_V2_M_Weights.IMAGENET1K_V1)
         self.model.classifier = nn.Sequential(
-            nn.Linear(1280, num_classes)
+            nn.Linear(1280, num_classes),
+            
         )
-        
+
     def forward(self, x):
         x = self.model(x)
         return x
