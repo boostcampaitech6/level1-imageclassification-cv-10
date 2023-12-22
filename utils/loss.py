@@ -151,7 +151,25 @@ class MSELoss(nn.Module):
 
 
 def focal(logits, labels, alpha, gamma):
+    """
+        Focal Loss를 계산합니다.
 
+        Parameters
+        ----------
+        logits : Tensor
+            모델의 출력 텐서입니다.
+        labels : Tensor
+            정답 레이블 텐서입니다.
+        alpha : float
+            focal loss의 알파값입니다.
+        gamma : float
+            focal loss의 감마값입니다.
+        
+        Returns
+        -------
+        Tensor
+            계산된 Focal 손실값입니다.
+        """
     BCLoss = F.binary_cross_entropy_with_logits(input = logits, target = labels,reduction = "none")
 
     if gamma == 0.0:
@@ -169,18 +187,47 @@ def focal(logits, labels, alpha, gamma):
     return focal_loss
 
 class BalancedFocalLoss(nn.Module):
-    
-    # [1736, 1687, 266]
-    def __init__(self, weight=None, gamma=2.0, reduction="mean", beta=0.9, samples_per_class=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83, 
+    """
+    클래스 불균형 문제를 해결하기 위해 2019년에 소개된 손실 함수인 BalancedFocalLoss입니다.
+
+    매개변수
+    ----------
+    gamma : float, 기본값=2.0
+        잘못 예측된 샘플에 대한 패널티를 조절하는 gamma 값.
+
+    beta : float, 기본값=0.9
+        클래스당 효과적인 샘플 수를 계산하는 데 사용되는 beta 값.
+
+    samples_per_class : list, 기본값=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83,
+                                      732, 817, 109, 549, 410, 83, 732, 817, 109]
+        각 클래스의 샘플 수를 포함하는 리스트. 클래스 가중치 계산에 사용됩니다.
+
+    """
+    def __init__(self, gamma=2.0, beta=0.9, samples_per_class=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83, 
                                                                                               732, 817, 109, 549, 410, 83, 732, 817, 109]):
         nn.Module.__init__(self)
-        self.weight = weight
         self.gamma = gamma
-        self.reduction = reduction
         self.beta = beta
         self.samples = samples_per_class
 
     def forward(self, logits, labels):
+        """
+        주어진 logits 및 labels에 대한 Balanced Focal Loss를 계산합니다.
+
+        매개변수
+        ----------
+        logits : torch.Tensor
+            모델에서 예측한 logits.
+
+        labels : torch.Tensor
+            실제 클래스 레이블.
+
+        반환
+        -------
+        torch.Tensor
+            계산된 Balanced Focal Loss.
+
+        """
         
         beta = self.beta
         gamma = self.gamma
