@@ -46,6 +46,7 @@ class AgeAugmentation:
         self.transform = transforms.Compose([
             transforms.Resize(resize, Image.BILINEAR),
             transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
             transforms.ToTensor(),
             transforms.Normalize(mean=mean, std=std)
         ])

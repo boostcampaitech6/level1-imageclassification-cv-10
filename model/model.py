@@ -124,9 +124,9 @@ class EfficientNetV2m(nn.Module):
         self.model.classifier = nn.Sequential(
             nn.Linear(1280, num_classes)
         )
-        
+
     def forward(self, x):
-        x = self.backbone(x)
+        x = self.model(x)
         return x
     
 class Vit(nn.Module):
