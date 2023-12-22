@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class FocalLoss(nn.Module):
     """
@@ -147,13 +148,117 @@ class MSELoss(nn.Module):
     
     def forward(self, predictions, targets):
         return self.func(predictions, targets)
+
+
+def focal(logits, labels, alpha, gamma):
+    """
+        Focal Loss를 계산합니다.
+
+        Parameters
+        ----------
+        logits : Tensor
+            모델의 출력 텐서입니다.
+        labels : Tensor
+            정답 레이블 텐서입니다.
+        alpha : float
+            focal loss의 알파값입니다.
+        gamma : float
+            focal loss의 감마값입니다.
+        
+        Returns
+        -------
+        Tensor
+            계산된 Focal 손실값입니다.
+        """
+    BCLoss = F.binary_cross_entropy_with_logits(input = logits, target = labels,reduction = "none")
+
+    if gamma == 0.0:
+        modulator = 1.0
+    else:
+        modulator = torch.exp(-gamma * labels * logits - gamma * torch.log(1 + 
+            torch.exp(-1.0 * logits))).cuda()
+
+    loss = modulator * BCLoss
+
+    weighted_loss = alpha * loss
+    focal_loss = torch.sum(weighted_loss).cuda()
+
+    focal_loss /= torch.sum(labels).cuda()
+    return focal_loss
+
+class BalancedFocalLoss(nn.Module):
+    """
+    클래스 불균형 문제를 해결하기 위해 2019년에 소개된 손실 함수인 BalancedFocalLoss입니다.
+
+    매개변수
+    ----------
+    gamma : float, 기본값=2.0
+        잘못 예측된 샘플에 대한 패널티를 조절하는 gamma 값.
+
+    beta : float, 기본값=0.9
+        클래스당 효과적인 샘플 수를 계산하는 데 사용되는 beta 값.
+
+    samples_per_class : list, 기본값=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83,
+                                      732, 817, 109, 549, 410, 83, 732, 817, 109]
+        각 클래스의 샘플 수를 포함하는 리스트. 클래스 가중치 계산에 사용됩니다.
+
+    """
+    def __init__(self, gamma=2.0, beta=0.9, samples_per_class=[2745, 2050, 415, 3660, 4085, 545, 549, 410, 83, 
+                                                                                              732, 817, 109, 549, 410, 83, 732, 817, 109]):
+        nn.Module.__init__(self)
+        self.gamma = gamma
+        self.beta = beta
+        self.samples = samples_per_class
+
+    def forward(self, logits, labels):
+        """
+        주어진 logits 및 labels에 대한 Balanced Focal Loss를 계산합니다.
+
+        매개변수
+        ----------
+        logits : torch.Tensor
+            모델에서 예측한 logits.
+
+        labels : torch.Tensor
+            실제 클래스 레이블.
+
+        반환
+        -------
+        torch.Tensor
+            계산된 Balanced Focal Loss.
+
+        """
+        
+        beta = self.beta
+        gamma = self.gamma
+        samples_per_cls = self.samples
+        ######
+        no_of_classes = 18
+        ######
+        effective_num = 1.0 - np.power(beta, samples_per_cls)
+        weights = (1.0 - beta) / np.array(effective_num)
+        weights = weights / np.sum(weights) * no_of_classes
+
+        labels_one_hot = F.one_hot(labels, no_of_classes).float().cuda()
+
+        weights = torch.tensor(weights).float().cuda()
+        weights = weights.unsqueeze(0)
+        weights = weights.repeat(labels_one_hot.shape[0],1) * labels_one_hot
+        weights = weights.sum(1)
+        weights = weights.unsqueeze(1)
+        weights = weights.repeat(1,no_of_classes).cuda()
+
+        cb_loss = focal(logits, labels_one_hot, weights, gamma)
+        
+        return cb_loss
     
 _criterion_entrypoints = {
     "cross_entropy": nn.CrossEntropyLoss,
     "focal": FocalLoss,
     "label_smoothing": LabelSmoothingLoss,
     "f1": F1Loss,
-    "mse": MSELoss
+    "mse": MSELoss,
+    "bfocal": BalancedFocalLoss
 }
 
 def criterion_entrypoint(criterion_name):
