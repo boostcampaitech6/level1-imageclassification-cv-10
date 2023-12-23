@@ -25,21 +25,21 @@
             <br />
         </td>
         <td align="center" width="150px">
-            <a href="https://github.com/helpmeIamnewbie"><img height="120px" width="120px" src=https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/d3891701-98db-4382-abc0-3a0ab64e976e"/></a>
+            <a href="https://github.com/jinida"><img height="120px" width="120px" src=https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/d3891701-98db-4382-abc0-3a0ab64e976e"/></a>
             <br />
-            <a href="https://github.com/helpmeIamnewbie"><strong>이영진</strong></a>
-            <br />
-        </td>
-        <td align="center" width="150px">
-            <a href="https://github.com/Eumgill98"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/912e24ed-cc51-49ab-90fd-24ef0df7ce0b"/></a>
-            <br />
-            <a href="https://github.com/Eumgill98"><strong>정소윤</strong></a>
+            <a href="https://github.com/jinida"><strong>이영진</strong></a>
             <br />
         </td>
         <td align="center" width="150px">
-              <a href="https://github.com/Eumgill98"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/d5fc34c5-dfd2-400e-86d5-b32976aeb928"/></a>
+            <a href="https://github.com/soyoonjeong"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/912e24ed-cc51-49ab-90fd-24ef0df7ce0b"/></a>
+            <br />
+            <a href="https://github.com/soyoonjeong"><strong>정소윤</strong></a>
+            <br />
+        </td>
+        <td align="center" width="150px">
+              <a href="https://github.com/classaen7"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/d5fc34c5-dfd2-400e-86d5-b32976aeb928"/></a>
               <br />
-              <a href="https://github.com/Eumgill98"><strong>최시현</strong></a>
+              <a href="https://github.com/classaen7"><strong>최시현</strong></a>
               <br />
           </td>
     </tr>
