@@ -7,15 +7,15 @@
 <table>
     <tr height="160px">
         <td align="center" width="150px">
-            <a href="https://github.com/woohee-yang"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/0548b5bf-d3f5-4c9e-a7e5-c2733bc48355"/></a>
-            <br/>
-            <a href="https://github.com/woohee-yang"><strong>양우희</strong></a>
-            <br />
-        </td>
-        <td align="center" width="150px">
             <a href="https://github.com/FinalCold"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/4c47db91-cf83-473c-888f-75d3a5573ac8"></a>
             <br/>
             <a href="https://github.com/FinalCold"><strong>박찬종</strong></a>
+            <br />
+        </td>
+        <td align="center" width="150px">
+            <a href="https://github.com/woohee-yang"><img height="120px" width="120px" src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/0548b5bf-d3f5-4c9e-a7e5-c2733bc48355"/></a>
+            <br/>
+            <a href="https://github.com/woohee-yang"><strong>양우희</strong></a>
             <br />
         </td>
         <td align="center" width="150px">
