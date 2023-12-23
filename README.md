@@ -2,7 +2,7 @@
 
 **`영-차 영-차! 마지막까지 한 걸음씩 나아가자`**  
 
-
+<br/>
 > ### 🏃 멤버
 <table>
     <tr height="160px">
@@ -72,15 +72,15 @@
 - Framework : PyTorch
 - Collaborative Tool : Git, Wandb, Notion
 ```
-<br/><br/>
+<br/><br/><br/>
 > ### ⏰ WBS
 <img src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/7dc7c21d-d41c-4b28-907e-4e9a88543c44">
 <a href="https://docs.google.com/spreadsheets/d/14qhqnSzOfvZsKYnmQyikYhVdpoUNx1-tdBY_Zkixy9c/edit#gid=0"> 📁 WBS</a>
-<br/><br/>
+<br/><br/><br/>
 
 > ### 🐋Model
 
-<br/><br/>
+<br/><br/><br/>
 
 > ### 📂 File Tree
 ```bash
@@ -121,7 +121,7 @@
  ┗ 📜README.md
 
 ``` 
-<br/><br/>
+<br/><br/><br/>
                 
 > ### 🔥 필수 라이브러리 설치
 ---
