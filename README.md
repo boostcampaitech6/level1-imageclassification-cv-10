@@ -50,6 +50,7 @@
 > ### 🏆 대회개요
 - `Multi Label Image Classification`
 - `마스크를 쓰거나 쓰지 않은 아시아인들의 얼굴 사진을 보고 마스크 착용 상태와 성별, 연령대를 추론하는 문제`
+
 <br/><br/><br/>
 > ### 👩‍💻 팀 역할
 |이름|역할|
@@ -85,28 +86,66 @@ pip install -r requirements.txt
 ```
 <br/><br/><br/>
 
+> ### 💽 Dataset
+- 총 사진 개수 :  31500장 
+- 원본 이미지 크기 : (512, 384)
+- Label : 마스크 착용 상태, 성별, 연령대
+- 마스크 착용 상태 (3 classes): 정상 착용, 비정상 착용, 미착용
+- 성별 (2 classes): 남성, 여성
+- 연령대 (3 classes): 30대 이하, 30대 이상 60대 미만, 60대 이상
+
+<br/><br/><br/>
+
+> ### 📊 EDA
+<p align = "center">
+<img height="300px" width="500px" src = "https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/a5319723-0254-4b4a-9b68-74035e965f9a">
+<p/>
+
+- mask와 gender에 대한 class imbalance도 있었지만, 두 레이블에 대해 각각 single model을  실험한 결과가 좋았기 때문에 가장 문제가 된 레이블은 age 였음
+- 총 3가지 클래스에 대해 분석한 결과, 60대 이상의 데이터가 가장 적어 augmentation이 꼭 필요한 것으로 보였음
+- 또한, 50대 후반 데이터가 60대 데이터에 비해 너무 많아 서로를 구별하기 어려울 수 있기 때문에 57-59세 데이터는 임의로 제거하기로 함. 동일하게 20대 후반 데이터도 30대 초반과 혼동할 가능성이 있어 28-29세를 제거하였음
+- 20대와 30대를 결정지을 수 있는 30대 초반의 남성 데이터가 극도로 적기 때문에 이 부분에 대해서도 augmentation을 진행하기로 함
+
+<br/><br/><br/>
+> ### 🚀 Model
+```bash
+최종 모델 : Multi Task Model + Hard voting ensemble
+```
+1) **`Mask Model`** : Autoaugmentation + EfficientnetV2m + CrossEntropy
+ - 다양한 Augmentation 기법을 실험했지만, 예상과는 다르게 분할된 데이터셋에서 성능의 차이가 크게 나타났음. 그에 따라 상대적으로 가장 강인한 효과를 보인 Autoaugmentation을 채택하게 되었음
+ - 손실 함수도 상기 이유로 Cross Entropy를 채택하여 학습하였음.
+2) **`Gender Model`** : Autoaugmentation + EfficientnetV2m + 입력 사이즈 [384, 288] +  Focal loss + AdamW + Cosine Scheduler
+- 성별 분류 모델은 성능이 가장 좋았던 EfficientNetV2m Backbone에 AutoAugmentation을 적용한 모델을 최종 선택함
+- 다양한 입력 사이즈로 실험한 결과 ½원본 크기에서 가장 높은 성능을 보여주어 채택함
+- 이외에 augmentation 기법들 중 Autoaugmentation 외에는 오히려 낮은 성능을 보여주었음
+3) **`Age Model`** : Custom data augmentation + Custom Mixup to 30s male, 60s + EfficientnetV2m + Hard-voting ensemble
+ - 다른 분류 문제보다 클래스 불균형이 심하여 이를 해결하기위해 여러가지 기법을 사용함.
+ - Augmentation 및 Loss는 e)의 실험에서 가장 좋은 효과가 나온 AutoAugmentation, FocalWithSmooting등을 사용하였음.
+ 그 외 기법으로 30~59 / 60~ 두 클래스의 구분을 뚜렷하게 하기위해 drop age을 적용함.
+ - 또한 데이터가 적은 30대의 남자 및 60대 이상에 대해서 mixup을 사용하여 offline augmentation을 진행함.
+ - 마지막으로 데이터 별 성능 편차가 있으므로 8:2로 나눈 데이터 셋들에 대해 각각의 모델을 학습시키고 최종으로 나온 모델들에 대해서 Hard-Voting을 진행함.
+
+<br/><br/><br/>
 > ### 🐋 Training
 config 폴더 안 <a href = "https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/config/base.yml">yaml 파일</a>에서 training 환경 조정 가능합니다. 
  - Mask Model
 ```bash
-python single_train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion cross_entropy --augmentation AutoAugmentation
+python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion cross_entropy --augmentation AutoAugmentation
 ```
 - Gender Model
 ```bash
-python single_train.py --exp-name <이름> --dataset OnlyGenderDataset --model EfficientNetV2m --criterion focal --augmentation AutoAugmentation --optimizer AdamW --schedular cosine
+python train.py --exp-name <이름> --dataset OnlyGenderDataset --model EfficientNetV2m --criterion focal --augmentation AutoAugmentation --optimizer AdamW --schedular cosine
 ```
-- Age Model
-  <br/>
+- Age Model 
 train 하기 이전에 데이터가 적은 30대 남자 및 60대 이상에 대해서 offline mixup augmentation을 진행
 ```bash
-python single_train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
+python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
 ```
 <br/><br/><br/>
 
 > ### 🔎 Inference
 각 label에 대한 Model을 Hard Voting ensemble 진행 
-<br/>
-<a href="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/inference_3m.py">inference_3m 파일</a>의 mask_model, gender_model, age_model 변수를 수정 후 아래 코드 실행 
+inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후 
 ```bash
 python inference_3m.py 
 ```
