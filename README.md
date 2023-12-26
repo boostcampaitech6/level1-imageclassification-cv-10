@@ -149,7 +149,7 @@ inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후
 ```bash
 python single_inference.py 
 ```
-<br/>
+<br/><br/>
 > ### 📂 File Tree
 ```bash
   📦level1-imageclassification-cv-10
