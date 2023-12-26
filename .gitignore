@@ -48,10 +48,10 @@ tests/
 .vscode/*
 .vscode/
 
-# exlude xml format
+# exclude xml format
 *.xml
 
-requirements.txt
+!requirements.txt
 
 # exlude csv format
 *.csv
