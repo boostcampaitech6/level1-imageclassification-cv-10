@@ -130,16 +130,16 @@ pip install -r requirements.txt
 config 폴더 안 <a href = "https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/config/base.yml">yaml 파일</a>에서 training 환경 조정 가능합니다. 
  - Mask Model
 ```bash
-python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion cross_entropy --augmentation AutoAugmentation
+python single_train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion cross_entropy --augmentation AutoAugmentation
 ```
 - Gender Model
 ```bash
-python train.py --exp-name <이름> --dataset OnlyGenderDataset --model EfficientNetV2m --criterion focal --augmentation AutoAugmentation --optimizer AdamW --schedular cosine
+python single_train.py --exp-name <이름> --dataset OnlyGenderDataset --model EfficientNetV2m --criterion focal --augmentation AutoAugmentation --optimizer AdamW --schedular cosine
 ```
 - Age Model 
 train 하기 이전에 데이터가 적은 30대 남자 및 60대 이상에 대해서 offline mixup augmentation을 진행
 ```bash
-python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
+python single_train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
 ```
 <br/><br/><br/>
 
@@ -147,7 +147,7 @@ python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientN
 각 label에 대한 Model을 Hard Voting ensemble 진행 
 inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후 
 ```bash
-python inference_3m.py 
+python single_inference.py 
 ```
 <br/><br/><br/>
 > ### 📂 File Tree
