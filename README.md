@@ -1,6 +1,5 @@
 # ⭐ CV 10팀 소개 
 
-**`영-차 영-차! 마지막까지 한 걸음씩 나아가자`** 
 ![영-차 영-차 (1)](https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/67350632/098b274b-42d1-4759-aa26-8f130c029330)
 <br/>
 
@@ -52,7 +51,7 @@
 - `Multi Label Image Classification`
 - `마스크를 쓰거나 쓰지 않은 아시아인들의 얼굴 사진을 보고 마스크 착용 상태와 성별, 연령대를 추론하는 문제`
 
-<br/><br/><br/>
+<br/>
 > ### 👩‍💻 팀 역할
 |이름|역할|
 |------|---|
@@ -64,7 +63,7 @@
 |최시현|데이터 전처리(배경 제거, 얼굴 탐지) 실험|
 
 
-<br/><br/><br/>
+<br/>
 > ### ⏰ WBS
 <img src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/7dc7c21d-d41c-4b28-907e-4e9a88543c44">
 <a href="https://docs.google.com/spreadsheets/d/14qhqnSzOfvZsKYnmQyikYhVdpoUNx1-tdBY_Zkixy9c/edit#gid=0"> 📁 WBS</a>
@@ -85,7 +84,7 @@
 ``` bash
 pip install -r requirements.txt
 ```
-<br/><br/><br/>
+<br/>
 
 > ### 💽 Dataset
 - 총 사진 개수 :  31500장 
@@ -95,7 +94,7 @@ pip install -r requirements.txt
 - 성별 (2 classes): 남성, 여성
 - 연령대 (3 classes): 30대 이하, 30대 이상 60대 미만, 60대 이상
 
-<br/><br/><br/>
+<br/>
 
 > ### 📊 EDA
 <p align = "center">
@@ -107,7 +106,7 @@ pip install -r requirements.txt
 - 또한, 50대 후반 데이터가 60대 데이터에 비해 너무 많아 서로를 구별하기 어려울 수 있기 때문에 57-59세 데이터는 임의로 제거하기로 함. 동일하게 20대 후반 데이터도 30대 초반과 혼동할 가능성이 있어 28-29세를 제거하였음
 - 20대와 30대를 결정지을 수 있는 30대 초반의 남성 데이터가 극도로 적기 때문에 이 부분에 대해서도 augmentation을 진행하기로 함
 
-<br/><br/><br/>
+<br/>
 > ### 🚀 Model
 ```bash
 최종 모델 : Multi Task Model + Hard voting ensemble
@@ -126,7 +125,7 @@ pip install -r requirements.txt
  - 또한 데이터가 적은 30대의 남자 및 60대 이상에 대해서 mixup을 사용하여 offline augmentation을 진행함.
  - 마지막으로 데이터 별 성능 편차가 있으므로 8:2로 나눈 데이터 셋들에 대해 각각의 모델을 학습시키고 최종으로 나온 모델들에 대해서 Hard-Voting을 진행함.
 
-<br/><br/><br/>
+<br/>
 > ### 🐋 Training
 config 폴더 안 <a href = "https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/config/base.yml">yaml 파일</a>에서 training 환경 조정 가능합니다. 
  - Mask Model
@@ -142,7 +141,7 @@ train 하기 이전에 데이터가 적은 30대 남자 및 60대 이상에 대�
 ```bash
 python single_train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
 ```
-<br/><br/><br/>
+<br/>
 
 > ### 🔎 Inference
 각 label에 대한 Model을 Hard Voting ensemble 진행 
@@ -150,7 +149,7 @@ inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후
 ```bash
 python single_inference.py 
 ```
-<br/><br/><br/>
+<br/>
 > ### 📂 File Tree
 ```bash
   📦level1-imageclassification-cv-10
