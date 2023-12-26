@@ -106,7 +106,7 @@ python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientN
 > ### 🔎 Inference
 각 label에 대한 Model을 Hard Voting ensemble 진행 
 <br/>
-inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후 아래 코드 실행 
+<a href="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/inference_3m.py">inference_3m 파일</a>의 mask_model, gender_model, age_model 변수를 수정 후 아래 코드 실행 
 ```bash
 python inference_3m.py 
 ```
