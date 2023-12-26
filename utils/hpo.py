@@ -22,6 +22,19 @@ sys.path.append(".")
 sys.path.append("..")
 
 def train(model, epochs, criterion, optimizer, scheduler):
+    """
+    주어진 모델을 지정된 epoch 동안 훈련시키고, 훈련된 모델의 성능을 평가한다.
+
+    Args:
+        model (torch.nn.Module): 훈련시킬 모델.
+        epochs (int): 훈련할 총 epoch 수.
+        criterion: 손실 함수.
+        optimizer: 최적화 알고리즘.
+        scheduler: 학습률 스케줄러.
+
+    Returns:
+        dict: 검증 데이터에 대한 모델의 성능 메트릭.
+    """
     criterion = criterion.to(device)
 
     for epoch in range(epochs):
@@ -55,6 +68,16 @@ def train(model, epochs, criterion, optimizer, scheduler):
     return metrics
 
 def validation(model, criterion):
+    """
+    주어진 모델을 검증 데이터셋에 대해 평가한다.
+
+    Args:
+        model (torch.nn.Module): 평가할 모델.
+        criterion: 손실 함수.
+
+    Returns:
+        dict: 검증 데이터에 대한 모델의 성능 메트릭.
+    """
     best_val_loss = 0.
     best_f1_score = 0.
     with torch.no_grad():
@@ -87,6 +110,15 @@ def validation(model, criterion):
     return metrics
 
 def search_hyperparam(trial):
+    """
+    Optuna를 사용하여 모델의 하이퍼파라미터를 탐색한다.
+
+    Args:
+        trial (optuna.trial.Trial): Optuna의 트라이얼 객체.
+
+    Returns:
+        dict: 제안된 하이퍼파라미터들.
+    """
     lr = trial.suggest_categorical("lr", [0.1, 0.5, 0.01, 0.05, 0.005])
     epochs = trial.suggest_int("epochs", low=2, high=10, step=2)
     criterion = trial.suggest_categorical("criterion", ["ce", "smooth", "focal"])
@@ -102,6 +134,15 @@ def search_hyperparam(trial):
     }
 
 def objective(trial):
+    """
+    Optuna의 목적 함수로, 모델의 성능을 평가하고 최적화한다. 
+
+    Args:
+        trial (optuna.trial.Trial): Optuna의 트라이얼 객체.
+
+    Returns:
+        float: 평가 메트릭 (F1 점수).
+    """
     hyperparams = search_hyperparam(trial)
 
     model_module = getattr(import_module("model.model", package='utils'), args.model)

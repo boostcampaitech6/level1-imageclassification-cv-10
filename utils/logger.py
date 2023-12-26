@@ -3,6 +3,19 @@ import os
 import wandb
 from data.datasets import MaskBaseDataset
 class Logger:
+    """
+    로그 파일을 생성하고 관리하는 클래스.
+
+    Attributes:
+        save_path (str): 로그 파일을 저장할 경로.
+        file_name (str): 로그 파일의 이름. 기본값은 'log.txt'.
+        file: 로그 파일 객체.
+
+    Methods:
+        update: 주어진 내용을 로그 파일에 기록한다.
+        update_string: 문자열 형태의 내용을 로그 파일에 기록한다.
+        close: 로그 파일을 닫는다.
+    """
     def __init__(self, save_path: str, file_name :str='log.txt'):
         self.save_path = save_path
         self.file_name = file_name
@@ -24,6 +37,21 @@ class Logger:
         self.file.close()
 
 class WeightAndBiasLogger():
+    """
+    Weights & Biases를 사용하여 실험 로그를 기록하는 클래스.
+
+    Attributes:
+        config (dict): 실험 설정 정보.
+        exp_name (str): 실험 이름.
+        project_name (str): Weights & Biases 프로젝트 이름. 기본값은 'Boost Camp Lv1'.
+
+    Methods:
+        update: 주어진 내용을 Weights & Biases 로그에 기록한다.
+        update_image_with_label: 레이블이 포함된 이미지를 Weights & Biases에 기록한다.
+        log: 딕셔너리 형태의 로그를 Weights & Biases에 기록한다.
+        log_confusion_matrix: 혼동 행렬을 Weights & Biases에 기록한다.
+    """
+
     def __init__(self, config: dict, exp_name: str, project_name: str='Boost Camp Lv1'):
         if isinstance(config, dict) or hasattr(config, '__dict__'):
             run = wandb.init(

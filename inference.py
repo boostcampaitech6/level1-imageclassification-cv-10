@@ -11,6 +11,17 @@ from data.datasets import TestDataset, MaskBaseDataset
 from utils.argparsers import Parser
 
 def load_model(saved_model, num_classes, device):
+    """
+    저장된 모델을 불러오고 초기화한다.
+
+    Args:
+        saved_model (str): 모델이 저장된 경로.
+        num_classes (int): 분류할 클래스의 수.
+        device (torch.device): 모델을 로드할 디바이스.
+
+    Returns:
+        torch.nn.Module: 초기화된 모델.
+    """
     model_cls = getattr(import_module("model.model"), args.model)
     model = model_cls(
         num_classes=num_classes
@@ -25,6 +36,16 @@ def load_model(saved_model, num_classes, device):
 @torch.no_grad()
 def inference(data_dir, model_dir, output_dir, args):
     """
+    데이터셋에 대해 모델의 추론을 수행하고 결과를 저장한다.
+
+    Args:
+        data_dir (str): 추론할 데이터셋이 위치한 디렉토리 경로.
+        model_dir (str): 학습된 모델이 저장된 디렉토리 경로.
+        output_dir (str): 추론 결과를 저장할 디렉토리 경로.
+        args: 추론 설정 매개변수가 포함된 객체.
+
+    Returns:
+        None: 함수는 추론 결과를 파일로 저장하며 별도의 반환 값은 없다.
     """
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")

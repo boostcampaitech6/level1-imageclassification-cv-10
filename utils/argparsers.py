@@ -1,6 +1,19 @@
 import argparse
 
 class Parser(object):
+    """
+    명령줄 인수를 파싱하기 위한 클래스.
+
+    이 클래스는 머신러닝 또는 딥러닝 실험의 구성 설정을 위한 명령줄 인수를 정의하고 관리합니다. 
+    사용자는 이 클래스를 통해 실험에 필요한 다양한 설정값을 지정할 수 있습니다.
+
+    Attributes:
+        description (str): 명령줄 파서에 대한 설명. 기본값은 빈 문자열입니다.
+        parser (argparse.ArgumentParser): 명령줄 인수를 파싱하는데 사용되는 argparse의 Parser 객체.
+
+    Methods:
+        create_parser: 명령줄 인자를 파서에 추가하는 메서드. 다양한 설정 및 데이터 경로 인자들이 포함됩니다.
+    """
     def __init__(self, description=""):
         self.description = description
         self.parser = argparse.ArgumentParser(description=self.description)
