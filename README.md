@@ -178,12 +178,10 @@ python single_inference.py
  ┃ ┣ 📜data_split.py  
  ┃ ┣ 📜util.py
  ┃ ┗ 📜yolov8n-face.pt
- ┣ 📜inference.py
- ┣ 📜inference_3m.py
+ ┣ 📜single_inference.py
  ┣ 📜multi_inference.py
+ ┣ 📜single_train.py
  ┣ 📜multi_train.py
- ┣ 📜train.py
- ┣ 📜train_regression.py
  ┣ 📜voting.py
  ┣ 📜requirements.txt
  ┗ 📜README.md
