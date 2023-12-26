@@ -63,6 +63,11 @@
 
 
 <br/><br/><br/>
+> ### ⏰ WBS
+<img src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/7dc7c21d-d41c-4b28-907e-4e9a88543c44">
+<a href="https://docs.google.com/spreadsheets/d/14qhqnSzOfvZsKYnmQyikYhVdpoUNx1-tdBY_Zkixy9c/edit#gid=0"> 📁 WBS</a>
+<br/><br/><br/>
+
 > ### 💻 개발 환경
 ```bash
 - Language : Python
@@ -73,15 +78,39 @@
 - Collaborative Tool : Git, Wandb, Notion
 ```
 <br/><br/><br/>
-> ### ⏰ WBS
-<img src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/7dc7c21d-d41c-4b28-907e-4e9a88543c44">
-<a href="https://docs.google.com/spreadsheets/d/14qhqnSzOfvZsKYnmQyikYhVdpoUNx1-tdBY_Zkixy9c/edit#gid=0"> 📁 WBS</a>
+> ### 🔥 필수 라이브러리 설치
+---
+``` bash
+pip install -r requirements.txt
+```
 <br/><br/><br/>
 
-> ### 🐋Model
-
+> ### 🐋 Training
+config 폴더 안 <a href = "https://github.com/boostcampaitech6/level1-imageclassification-cv-10/blob/main/config/base.yml">yaml 파일</a>에서 training 환경 조정 가능합니다. 
+ - Mask Model
+```bash
+python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion cross_entropy --augmentation AutoAugmentation
+```
+- Gender Model
+```bash
+python train.py --exp-name <이름> --dataset OnlyGenderDataset --model EfficientNetV2m --criterion focal --augmentation AutoAugmentation --optimizer AdamW --schedular cosine
+```
+- Age Model
+  <br/>
+train 하기 이전에 데이터가 적은 30대 남자 및 60대 이상에 대해서 offline mixup augmentation을 진행
+```bash
+python train.py --exp-name <이름> --dataset OnlyMaskDataset --model EfficientNetV2m --criterion focal --age-drop True  
+```
 <br/><br/><br/>
 
+> ### 🔎 Inference
+각 label에 대한 Model을 Hard Voting ensemble 진행 
+<br/>
+inference_3m 파일의 mask_model, gender_model, age_model 변수를 수정 후 아래 코드 실행 
+```bash
+python inference_3m.py 
+```
+<br/><br/><br/>
 > ### 📂 File Tree
 ```bash
   📦level1-imageclassification-cv-10
@@ -121,11 +150,5 @@
  ┗ 📜README.md
 
 ``` 
-<br/><br/><br/>
-                
-> ### 🔥 필수 라이브러리 설치
----
-``` bash
-pip install -r requirements.txt
-```
+
 
