@@ -1,6 +1,7 @@
 # ⭐ CV 10팀 소개 
 
-**`영-차 영-차! 마지막까지 한 걸음씩 나아가자`**  
+**`영-차 영-차! 마지막까지 한 걸음씩 나아가자`** 
+![영-차 영-차 (1)](https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/67350632/098b274b-42d1-4759-aa26-8f130c029330)
 <br/>
 
 > ### 🏃 멤버
