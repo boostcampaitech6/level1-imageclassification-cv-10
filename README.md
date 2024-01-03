@@ -63,7 +63,7 @@
 |최시현|데이터 전처리(배경 제거, 얼굴 탐지) 실험|
 
 
-<br/>
+<br/><br/>
 > ### ⏰ WBS
 <img src="https://github.com/boostcampaitech6/level1-imageclassification-cv-10/assets/76814748/7dc7c21d-d41c-4b28-907e-4e9a88543c44">
 <a href="https://docs.google.com/spreadsheets/d/14qhqnSzOfvZsKYnmQyikYhVdpoUNx1-tdBY_Zkixy9c/edit#gid=0"> 📁 WBS</a>
@@ -84,7 +84,7 @@
 ``` bash
 pip install -r requirements.txt
 ```
-<br/>
+<br/><br/>
 
 > ### 💽 Dataset
 - 총 사진 개수 :  31500장 
@@ -94,7 +94,7 @@ pip install -r requirements.txt
 - 성별 (2 classes): 남성, 여성
 - 연령대 (3 classes): 30대 이하, 30대 이상 60대 미만, 60대 이상
 
-<br/>
+<br/><br/>
 
 > ### 📊 EDA
 <p align = "center">
